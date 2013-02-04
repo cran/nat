@@ -1,0 +1,103 @@
+nat 1.0
+=======
+* implement reading of amiramesh data
+* including amira SkeletonGraph format tracings
+* switch to filehashRDS format for repositories of remote neurons
+* retire stashR backend for neuronlistfh remote repositories (too slow)
+
+nat 0.9
+=======
+* support for automatic download of neurons from stashR remote repositories on
+  the web. ?neuronlistfh for details and an example. 
+* Relies on stashR package
+* dev: small doc fixes to make package CRAN compatible.
+
+nat 0.8
+=======
+* important new feature: neuronlistfh objects backed by an on disk filehash
+  allow single neurons to be loaded from disk on demand
+* this allows 1) fast startup suitable for knitr documents and 2) working with
+  more neurons than fit in main memory
+* of course this is slower than working with an in-memory list but for plotting
+  etc this should not be problem
+* furthermore neuronlistfh objects can be subsetted/converted to give in memory
+  neuronlist objects.
+
+nat 0.7
+=======
+* implement read.neuron and read.neurons
+* so far only works for rda, rds and swc files
+* reading of additional file types will be implemented by registering functions =
+  to test, read and write for the format using a package regsistry controlled by
+  nat::neuronformats.
+* developer: seglists in neurons now have class 'seglist'
+
+nat 0.6
+=======
+* major new functionality - bidirectional interconversion of graph and regular
+  neuron representation
+* see as.neuron.* methods and as.ngraph.* methods
+* plan is to use graph representation as the common intermediate with reading 
+  different neuron file formats
+* depends on igraph package
+
+nat 0.5.2
+=========
+* add subset.neuronlist
+* add methods for working with dataframe attached to neuronlist 
+  (see e.g. ?with.neuronlist)
+* TODO harmonise plot3d.neuronlist subset expressions with subset.neuronlist
+
+nat 0.5.1
+=========
+* Switch license to GPL-3
+* xform (transformation) of hxsurf objects
+* fix xform of neuronlist objects
+* switch from CMTK gregxform to streamxform (gregxform is deprecated; streamxform can concatenate registrations)
+* teach mirror function to accept numeric axis specification
+* Fix bug in checking extra directories in cmtk.bindir
+* Add dotprops.neuronlist and include all dotprops methods in documentation
+* Fix longstanding bug in parsing cmtk warping registrations (only relevant for
+  reading these into R lists - no effect on transformations).
+* fix bug in class of cmtkreg objects
+* Remove call to .Internal(La_rs) by calling eigen directly
+* doc: some notes on CMTK installation
+
+nat 0.5
+=======
+* fix broken handling of cmtk affine transformations
+* implement mirroring of neurons and other objects
+* teach xformpoints (and therefore xform) to handle "~/" in paths
+* bugfix in visibility of S3method xformpoints.character
+* (developer) Switch to roxygen2 v3.0 for documentation
+
+nat 0.4
+=======
+* read.hxsurf and plot3d.hxsurf for reading/plotting Amira surfaces
+* better handling of location of cmtk command line tools see ?cmtk for details
+* add neuronlist and associated methods (including plot)
+* plot3d for neurons and dotprops
+
+nat 0.3
+=======
+* basic and self-contained implementation of neuron class
+* basic and self-contained implementation of dotprops
+* new xform generic + methods for clean transformation of objects including
+  neurons and dotprops objects
+* this includes improved interaction between dotprops and xform so that xform
+  can use the previously value of k when recalculating a dotprops object post
+  transformation
+* sample data (40 PNs from Jefferis, Potter et al. '07 and 20 KCs from Chiang 
+  et al. 2011)
+* 1 use of .Internal and missing nlapply remain to be fixed.
+
+nat 0.2.1
+=========
+* fix install error due to missing neuron(*).R files that contain docs only so far
+
+nat 0.2
+=======
+* Fairly complete implementation of CMTK registration I/O and geometry
+* All functionality is self-contained (i.e. independent of nat.as/AnalysisSuite)
+* passes check()
+* can be augmented by nat.as (0.6)
