@@ -1,9 +1,9 @@
-a24e1aab543876070c7a5e3a8f498363 *DESCRIPTION
+08297f13d03aff191f8e29dfff403f6e *DESCRIPTION
 534dcb30228de842fc90c51031dfb99b *NAMESPACE
-0aeb5c8b166ecdc9e131583db7d1eae9 *NEWS
+6dfa530eced737d65469ede2ec47f6bb *NEWS
 f7321ddd62d35ecf0669a7b124ae839e *R/amiralandmarks-io.R
 d7a976da03f2489bd5159a04bf6dead7 *R/amiramesh-io.R
-2a77d483046fe77a2a845fd38f6d61fb *R/cmtk.R
+50ebb6f0d023094b4020e0145961a0b5 *R/cmtk.R
 64dd1de92d8b2800d3fec6e8e50030d5 *R/cmtk_geometry.R
 1877a09a39da57a719ff651120e97e3a *R/cmtk_io.R
 2bd83e378471aee6f679a56f0a4722be *R/cmtkreg.R
@@ -21,8 +21,8 @@ cd15f1e16c852cec6f1fe9e34fadd488 *R/neuronlistfh.R
 cfbb2665eb86caff98566246150c4325 *R/seglist.R
 013ee646c1910608c4ffa1db3e27f891 *R/xform.R
 b8704ec71bc5086ec7305e9a4d5d2aac *R/xformpoints.R
-557a7e5961a30534a0fe5ee26ae964bb *R/zzz.R
-72f1f21a26c919d36e24824aa922a82b *README.md
+82f1aa51286ceb99b7e7ba4c54ad713c *R/zzz.R
+b7bee406858a1066dab11f9a748df929 *README.md
 8231fa6e8455454ad56ab0593bc2340e *data/Cell07PNs.rda
 1747293d409200cf3b1a2298be01d3e4 *data/kcs20.rda
 63d9c4e0db378603d2dffdfa40ffd204 *inst/CITATION
@@ -70,7 +70,7 @@ f66a4df1e5be8bca4213ca4043e30767 *man/amiralandmark-io.Rd
 84ce744d90bc11a78751db8bb93bcae4 *man/amiratype.Rd
 76cef28e5aee1ba1ed8a0fda92f0d29e *man/as.neuronlist.Rd
 697ac343f53dea5be2db0edd80509e34 *man/as.neuronlist.neuronlistfh.Rd
-aa03fde723edcf65eeb4d266a2d18f35 *man/cmtk.bindir.Rd
+aa0cb6108e6e1e448745df6ce6761fd8 *man/cmtk.bindir.Rd
 0a3921587104e6d6b47c22c93886f34a *man/cmtk.dof2mat.Rd
 f9ce6b783693d021b890c2ecabd48b82 *man/cmtk.mat2dof.Rd
 436e623af8594b4db72036ec9702bcb0 *man/cmtklandmarks.Rd
