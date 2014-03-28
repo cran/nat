@@ -1,3 +1,113 @@
+nat 1.4.5
+=========
+* add plot.neuron for 2d plots (ajdm, from code in AnalysisSuite)
+* add nopen3d() which opens an rgl viewer that allows panning. See ?nopen3d for
+  details of how to use this.
+* teach read.neurons to report files that have problems as they are read
+* fix temp file left behind by xform.cmtkreg
+* fix dangerous looking warning when amira binary files have empty sections
+* fix ability of read.neurons to set InputFileName and therefore retain
+  status information for the file along with its MD5 hash
+* fix bug exporting xform.default (so that xform(matrix()) works)
+* docs: improve coverage of BoundingBox vs bounds
+* tests: simple tests for plot(3d).neuron
+* tests: clear up temp files and suppress most warnings
+* dev: restart travis build of flycircuit package when nat is pushed to github
+
+nat 1.4.4
+=========
+* fix handling of logical expressions including NAs by subset.neuronlist
+* add soma argument to plot3d.neuron
+* fix: boundingbox.im3d() returns NULL when bounding box is not defined
+* give remotesync.neuronlistfh an indices argument to allow download/update
+  from the web of a selected population of neurons
+* add ndigest.neuron method
+* fix: export ndigest.dotprops method
+* give image.im3d a useRaster option, which defaults to TRUE when possible.
+
+nat 1.4.3
+=========
+* new ndigest (normalised digest) function to compute hash values. Methods for
+  neuronlistfh and dotprops objects. Can be used e.g. to compute a hash value
+  for a standard dps object to determine if a data.
+* new threshold function with a method for im3d objects. Can be used to make
+  masks.
+* more flexible im3d constructor can use an existing im3d object to supply
+  spatial attributes.
+
+nat 1.4.2
+=========
+* fix bug in read.neuronlistfh resulting in error if a remote file was
+  downloaded and then read back in (using cached copy) before any neurons were
+  downloaded.
+
+nat 1.4.1
+=========
+* fix bug in write.nrrd - was failing to write essential space dimensions field.
+* make gzip the default encoding for nrrd images - this is pretty much always
+  what one wants.
+
+nat 1.4.0
+=========
+* add cmtk.reformatx command for reformatting images using CMTK registrations
+* new function remotesync to synchronise a neuronlistfh object with its remote
+  source.
+* add write.neuronlistfh and improve consistency/docs of path handling in 
+  read.neuronlistfh
+* option to write missing (or no) neurons when using as.neuronlistfh.neuronlist
+  this makes it _much_ faster to re-export these objects or prepare neuronlistfh
+  for subsets of an existing group of neurons
+* fix hashmap functionality of neuronlistfh (speeds up access to single neurons)
+
+nat 1.3.2
+=========
+* fix bug in find.neuron for neuronlistfh objects
+* fix bug in neuronlistfh constructor (wasn't adding hashmap) and 
+  [[.neuronlistfh (was not searching properly for objects when using hashmap).
+
+nat 1.3.1
+=========
+* add find.neuron for interactive selection of neurons in 3d.
+
+nat 1.3
+=======
+* implementation of new im3d image manipulations functions including image.im3d,
+  projection, unmask, imslice, imscalebar, imexpand.grid, flip, origin,
+  boundingbox<-, xyzpos, ijkpos
+* see ?im3d, ?boundingbox, ?image3d.im3d, ?imscalebar and ?flip for details
+* fix reading of gzipped nrrds on windows
+* dev: fix nocran tests
+
+nat 1.2
+=======
+* Basic implementation of reading/writing NRRD format image data.
+  See read.nrrd and write.nrrd for details.
+* Basic implementation of reading/writing Amira format image data.
+  See read.amiramesh and write.amiramesh for details.
+* Basic implementation of a class for 3d images, im3d
+* see read.im3d and write.im3d for I/O
+* and voxdims and boundingbox methods for physical dimensions
+* switch to more flexible neuronlistfh structure in which objects on disk are
+  named by the md5 hash of their contents.
+* workaround for connection leak in filehashRDS objects that stopped downloads
+  of more than 124 new objects by a neuronlistfh (ajdm).
+  (see https://github.com/rdpeng/filehash/pull/3 for details)
+* dev: approach allowing some tests (e.g. those using the web) to be ignored on
+  CRAN (ajdm)
+* dev: travis continuous integration support (ajdm)
+
+nat 1.1
+=======
+* Implemented reading and writing of groups of neurons from/to neuronlists.
+  See read.neurons and write.neurons.
+* Implemented writing of single neurons in swc format, Amira's HxLineSet and 
+  SkeletonGraph formats, and R's rds format.
+* Can now read Amira HxLineSet format neurons (see read.neuron)
+* Give read.neuronlistfh an update argument (default:FALSE) so that it does not
+  re-download remote data.
+* dev: speed and flexibility improvements in fileformats ioregistry.
+  see ?fileformats for details of new functions.
+
 nat 1.0.1
 =========
 * fix bug in cmtk.bindir() on Solaris (thanks to Brian Ripley)

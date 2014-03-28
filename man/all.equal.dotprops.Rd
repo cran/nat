@@ -12,15 +12,18 @@
   (false by default)}
 
   \item{absoluteVectors}{Whether to check only the absolute
-  value of eigen vectors for equality (default TRUE, see
-  description)}
+  value of eigenvectors for equality (default TRUE, see
+  details)}
 
   \item{...}{Additional arguments passed to base
   \code{all.equal}.}
 }
 \description{
-This method is require because the direction vectors are
-computed using an eigen vector decomposition where the sign
+all.equal method tailored to dotprops objects
+}
+\details{
+This method is required because the direction vectors are
+computed using an eigenvector decomposition where the sign
 of the eigenvector is essentially random and subject to
 small numerical instabilities. Therefore it does not
 usually make sense to check the value of vect exactly.

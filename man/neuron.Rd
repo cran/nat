@@ -49,7 +49,9 @@ as.neuron(x, ...)
   file}
 
   \item{NeuronName}{Character vector containing name of
-  neuron}
+  neuron or a function with one argument (the full path)
+  which returns the name. The default (\code{NULL}) sets
+  NeuronName to the file name without the file extension.}
 
   \item{MD5}{Logical indicating whether to calculate MD5
   hash of input}
@@ -106,8 +108,8 @@ one with the most points) will then be stored in n$SegList
 and n$NumPoints will refer to the number of points in that
 subtree, not the whole neuron.
 
-StartPoint,BranchPoints,EndPoints are indices matching the
-rows of the vertices in \code{d} \strong{not} arbitrary
+StartPoint, BranchPoints, EndPoints are indices matching
+the rows of the vertices in \code{d} \strong{not} arbitrary
 point numbers typically encoded in \code{d$PointNo}.
 
 Columns will be ordered

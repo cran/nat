@@ -1,5 +1,7 @@
 #' Read AmiraMesh data in binary or ascii format
 #' 
+#' @details reading byte data as raw arrays requires 1/4 memory but complicates
+#'   arithmetic.
 #' @param file Name of file (or connection) to read
 #' @param sections character vector containing names of sections
 #' @param header Whether to include the full unprocessesd text header as an 
@@ -8,6 +10,8 @@
 #'   in a list (default TRUE).
 #' @param endian Whether multibyte data types should be treated as big or little
 #'   endian. Default of NULL checks file or uses \code{.Platform$endian}
+#' @param ReadByteAsRaw Logical specifying whether to read 8 bit data as an R 
+#'   \code{raw} vector rather than \code{integer} vector (default: FALSE).
 #' @param Verbose Print status messages
 #' @return list of named data chunks
 #' @rdname amiramesh-io
@@ -15,7 +19,7 @@
 #' @seealso \code{\link{readBin}, \link{.Platform}}
 #' @family amira
 read.amiramesh<-function(file,sections=NULL,header=FALSE,simplify=TRUE,
-                         endian=NULL,Verbose=FALSE){
+                         endian=NULL,ReadByteAsRaw=FALSE,Verbose=FALSE){
   firstLine=readLines(file,n=1)
   if(!any(grep("#\\s+(amira|hyper)mesh",firstLine,ignore.case=TRUE))){
     warning(paste(file,"does not appear to be an AmiraMesh file"))
@@ -32,15 +36,24 @@ read.amiramesh<-function(file,sections=NULL,header=FALSE,simplify=TRUE,
   on.exit(try(close(con),silent=TRUE))
   h=read.amiramesh.header(con,Verbose=Verbose)
   parsedHeader=h[["dataDef"]]
-  
+  if(ReadByteAsRaw){
+    parsedHeader$RType[parsedHeader$SimpleType=='byte']='raw'
+  }
   if(is.null(sections)) sections=parsedHeader$DataName
-  else sections=intersect(parsedHeader$DataName,sections)  
-  if(binaryfile){
-    filedata=.read.amiramesh.bin(con,parsedHeader,sections,Verbose=Verbose,endian=endian)
-    close(con)
+  else sections=intersect(parsedHeader$DataName,sections)
+  if(length(sections)){
+    if(binaryfile){
+      filedata=.read.amiramesh.bin(con,parsedHeader,sections,Verbose=Verbose,endian=endian)
+      close(con)
+    } else {
+      close(con)
+      filedata=read.amiramesh.ascii(file,parsedHeader,sections,Verbose=Verbose)
+    }
   } else {
-    close(con)
-    filedata=read.amiramesh.ascii(file,parsedHeader,sections,Verbose=Verbose)
+    # we don't have any data to read - just make a dummy return object to which
+    # we can add attributes
+    filedata<-switch(parsedHeader$RType[1],
+                     integer=integer(0), raw=raw(), numeric(0))
   }
   
   if(!header) h=h[setdiff(names(h),c("header"))]	
@@ -48,7 +61,7 @@ read.amiramesh<-function(file,sections=NULL,header=FALSE,simplify=TRUE,
     attr(filedata,n)=h[[n]]
   
   # unlist?
-  if(simplify && length(filedata)==1){
+  if(simplify && is.list(filedata) && length(filedata)==1){
     filedata2=filedata[[1]]
     attributes(filedata2)=attributes(filedata)
     dim(filedata2)=dim(filedata[[1]])
@@ -78,7 +91,7 @@ read.amiramesh<-function(file,sections=NULL,header=FALSE,simplify=TRUE,
         } else {
           uncompressed=con
         }
-        if(df$RType[i]=="integer") whatval=integer(0) else whatval=numeric(0)
+        whatval=switch(df$RType[i], integer=integer(0), raw=raw(0), numeric(0))
         x=readBin(uncompressed,df$SimpleDataLength[i],size=df$Size[i],
                   what=whatval,signed=df$Signed[i],endian=endian)
       }
@@ -91,10 +104,13 @@ read.amiramesh<-function(file,sections=NULL,header=FALSE,simplify=TRUE,
       if(ndims>1) dim(x)=dims
       if(ndims==2) x=t(x) # this feels like a hack, but ...
       l[[df$DataName[i]]]=x
-    }  	
-    readLines(con,n=1) # Skip return at end of section
-    nextSectionHeader=readLines(con,n=1)
-    if(Verbose) cat("nextSectionHeader = ",nextSectionHeader,"\n")
+    }
+    if(df$SimpleDataLength[i]){
+      # Skip return at end of section iff we had some data to read
+      readLines(con,n=1)
+      nextSectionHeader=readLines(con,n=1)
+      if(Verbose) cat("nextSectionHeader = ",nextSectionHeader,"\n")
+    }
   }
   l
 }
@@ -141,11 +157,12 @@ read.amiramesh.ascii<-function(file, df, sections, Verbose=FALSE){
 
 #' Read the header of an amiramesh file
 #' 
+#' @param Parse Logical indicating whether to parse header (default: TRUE)
 #' @export
 #' @rdname amiramesh-io
 #' @details \code{read.amiramesh.header} will open a connection if file is a 
 #'   character vector and close it when finished reading.
-read.amiramesh.header<-function(file, Verbose=FALSE){
+read.amiramesh.header<-function(file, Parse=TRUE, Verbose=FALSE){
   if(inherits(file,"connection")) {
     con=file
   } else {
@@ -156,6 +173,7 @@ read.amiramesh.header<-function(file, Verbose=FALSE){
   while( substring(t<-readLines(con,1),1,2)!="@1"){
     headerLines=c(headerLines,t)
   }
+  if(!Parse) return(headerLines)
   returnList<-list(header=headerLines)
   
   nHeaderLines=length(headerLines)
@@ -254,6 +272,16 @@ read.amiramesh.header<-function(file, Verbose=FALSE){
   return(returnList)
 }
 
+# utility function to check that the label for a given item is unique
+.checkLabel=function(l, label)   {
+  if( any(names(l)==label)  ){
+    newlabel=make.unique(c(names(l),label))[length(l)+1]
+    warning(paste("Duplicate item",label,"renamed",newlabel))
+    label=newlabel
+  }
+  label
+}
+
 .ParseAmirameshParameters<-function(textArray, CheckLabel=TRUE,ParametersOnly=FALSE){
   
   # First check what kind of input we have
@@ -265,16 +293,6 @@ read.amiramesh.header<-function(file, Verbose=FALSE){
   }
   # empty list to store results
   l=list()
-  
-  # utility function to check that the label for a given item is unique
-  checkLabel=function(label) 	{
-    if( any(names(l)==label)  ){
-      newlabel=make.unique(c(names(l),label))[length(l)+1]
-      warning(paste("Duplicate item",label,"renamed",newlabel))
-      label=newlabel
-    }
-    label
-  }
   
   # Should this check to see if the connection still exists?
   # in case we want to bail out sooner
@@ -311,7 +329,7 @@ read.amiramesh.header<-function(file, Verbose=FALSE){
       # parse new subsection
       #cat("new subsection -> recursion\n")
       # set the list element!
-      if(CheckLabel) label=checkLabel(label)
+      if(CheckLabel) label=.checkLabel(l, label)
       l[[length(l)+1]]=.ParseAmirameshParameters(con,CheckLabel=CheckLabel)
       names(l)[length(l)]<-label
       
@@ -337,18 +355,16 @@ read.amiramesh.header<-function(file, Verbose=FALSE){
         
         if(returnAfterParsing) thisLine=sub("\\}","",thisLine,fixed=TRUE)
         
-        # dequote quoted string
-        # can do this by using a textConnection
-        tc=textConnection(thisLine)
-        
-        items=scan(tc,what="",quiet=TRUE)[-1]
-        close(tc)
+        # dequote quoted string using scan
+        items=scan(text=thisLine,what="",quiet=TRUE)[-1]
+        # remove any commas
+        items=items[items!=","]
         attr(items,"quoted")=TRUE
       }
     }
     # set the list element!
     if(CheckLabel)
-      label=checkLabel(label)
+      label=.checkLabel(l, label)
     
     l[[length(l)+1]]=items
     names(l)[length(l)]<-label
@@ -412,10 +428,12 @@ decode.rle<-function(d,uncompressedLength){
 # @param compressed Path to compressed file, connection or raw vector.
 # @param offset Byte offset in file on disk
 # @param compressedLength Bytes of compressed data to read
+# @param type The compression type. See ?memDecompress for details.
 # @param ... Additional parameters passed to \code{\link{readBin}}
 # @return raw vector of decompressed data
+# sealso memDecompress
 # @export
-read.zlib<-function(compressed, offset=NA, compressedLength=NA, ...){
+read.zlib<-function(compressed, offset=NA, compressedLength=NA, type='gzip', ...){
   if(!is.raw(compressed)){
     if(inherits(compressed,'connection')){
       if(is.na(compressedLength)) stop("Must supply compressedLength when reading from a connection")
@@ -429,7 +447,7 @@ read.zlib<-function(compressed, offset=NA, compressedLength=NA, ...){
     }
     compressed=readBin(con, what=raw(), n=compressedLength)
   }
-  memDecompress(compressed,type='gzip')
+  memDecompress(compressed, type=type, ...)
 }
 
 # Compress raw data, returning raw vector or writing to file
@@ -465,6 +483,10 @@ is.amiramesh<-function(f) {
   # AmiraMesh
   magic=as.raw(c(0x23, 0x20, 0x41, 0x6d, 0x69, 0x72, 0x61, 0x4d, 0x65, 
                  0x73, 0x68))
+  if(is.character(f)) {
+    f=gzfile(f, open='rb')
+    on.exit(close(f))
+  }
   first11bytes=try(readBin(f,what=raw(),n=11),silent=TRUE)
   !inherits(first11bytes,'try-error') && length(first11bytes)==11 && 
     all(first11bytes==magic)
@@ -472,26 +494,140 @@ is.amiramesh<-function(f) {
 
 #' Return the type of an amiramesh file on disk or a parsed header
 #' 
-#' @details Note that when checking a file we first test if it is an amiramesh
-#'   file (fast) before reading the header and determining content type (slow).
+#' @details Note that when checking a file we first test if it is an amiramesh 
+#'   file (fast, especially when \code{bytes!=NULL}) before reading the header 
+#'   and determining content type (slow).
 #' @param x Path to files on disk or a single pre-parsed parameter list
+#' @param bytes A raw vector containing at least 11 bytes from the start of the
+#'   file.
 #' @return character vector (NA_character_ when file invalid)
 #' @export
 #' @family amira
-amiratype<-function(x){
+amiratype<-function(x, bytes=NULL){
   if(is.list(x)) h<-x
   else {
-    # we have a file
+    # we have a file, optionally with some raw data
+    if(!is.null(bytes) && length(x)>1) 
+      stop("Can only accept bytes argument for single file")
     if(length(x)>1) return(sapply(x,amiratype))
-    if(!isTRUE(is.amiramesh(x))) return(NA_character_)
+    tocheck=if(is.null(bytes)) x else bytes
+    if(!isTRUE(is.amiramesh(tocheck))) return(NA_character_)
     h=try(read.amiramesh.header(x, Verbose=FALSE), silent=TRUE)
     if(inherits(h,'try-error')) return(NA_character_)
   }
   if(!is.null(ct<-h$Parameters$ContentType)){
-    ct
+    as.vector(ct)
   } else if(!is.null(ct<-h$Parameters$CoordType)){
     # since e.g. uniform is not very descriptive
     # append field to make uniform.field
-    paste(ct,'field',sep='.')
+    paste(as.vector(ct),'field',sep='.')
   } else NA_character_
 }
+
+#' Write a 3d data object to an amiramesh format file
+#' @inheritParams write.im3d
+#' @param enc Encoding of the data. NB "raw" and "binary" are synonyms.
+#' @param dtype Data type to write to disk
+#' @param endian Endianness of data block. Defaults to current value of 
+#'   \code{.Platform$endian}.
+#' @param WriteNrrdHeader Whether to write a separate detached nrrd header next 
+#'   to the amiramesh file allowing it to be opened by a NRRD reader. See
+#'   details.
+#' @details Note that only raw or text format data can accommodate a detached
+#'   NRRD format header - the
+#' @export
+#' @seealso \code{\link{.Platform}, \link{read.amiramesh}}
+#' @examples
+#' d=array(rnorm(1000), c(10, 10, 10))
+#' tf=tempfile(fileext='.am')
+#' write.amiramesh(im3d(d, voxdims=c(0.5,0.5,1)), file=tf, WriteNrrdHeader=TRUE)
+#' d2=read.nrrd(paste(tf, sep='', '.nhdr'))
+#' all.equal(d, d2, tol=1e-6)
+write.amiramesh<-function(x, file, enc=c("binary","raw","text","hxzip"),
+                          dtype=c("float","byte", "short", "ushort", "int", "double"),
+                          endian=.Platform$endian, WriteNrrdHeader=FALSE){
+  enc=match.arg(enc)
+  endian=match.arg(endian, c('big','little'))
+  if(enc=='text') cat("# AmiraMesh ASCII 1.0\n\n",file=file)
+  else if(endian=='little') cat("# AmiraMesh BINARY-LITTLE-ENDIAN 2.1\n\n",file=file)
+  else cat("# AmiraMesh 3D BINARY 2.0\n\n",file=file)
+  
+  fc=file(file,open="at") # ie append, text mode
+  cat("# Created by write.amiramesh\n\n",file=fc)	
+  
+  if(!is.list(x)) d=x else d=x$estimate
+  # Find data type and size for amira
+  dtype=match.arg(dtype)	
+  dtypesize<-c(4,1,2,2,4,8)[which(dtype==c("float","byte", "short","ushort", "int", "double"))]
+  # Set the data mode which will be used in the as.vector call at the
+  # moment that the binary data is written out.
+  if(dtype%in%c("byte","short","ushort","int")) dmode="integer"
+  if(dtype%in%c("float","double")) dmode="numeric"
+  
+  lattice=dim(d)
+  cat("define Lattice",lattice,"\n",file=fc)
+  
+  cat("Parameters { CoordType \"uniform\",\n",file=fc)
+  # note Amira's definition for the bounding box:
+  # the range of the voxel centres.
+  # So eval.points should correspond to the CENTRE of the
+  # voxels at which the density is evaluated
+  cat("\t# BoundingBox is xmin xmax ymin ymax zmin zmax\n",file=fc)
+  BoundingBox=NULL
+  if(!is.null(attr(x,"BoundingBox"))){
+    BoundingBox=attr(x,"BoundingBox")
+  } else if(is.list(d) && !is.null(d$eval.points)){
+    BoundingBox=as.vector(apply(d$eval.points,2,range))
+  }
+  if(!is.null(BoundingBox)) cat("\t BoundingBox",BoundingBox,"\n",file=fc)
+  cat("}\n\n",file=fc)
+  
+  if(enc=="hxzip"){
+    raw_data=writeBin(as.vector(d,mode=dmode),raw(),size=dtypesize,endian=endian)
+    zlibdata=write.zlib(raw_data)
+    cat("Lattice { ",dtype," ScalarField } = @1(HxZip,",length(zlibdata),")\n\n",sep="",file=fc)
+  } else cat("Lattice {",dtype,"ScalarField } = @1\n\n",file=fc)
+  
+  cat("@1\n",file=fc)
+  close(fc)
+  
+  # Write a Nrrd header to accompany the amira file if desired
+  # see http://teem.sourceforge.net/nrrd/
+  if(WriteNrrdHeader) {
+    if(enc=="hxzip") stop("Nrrd cannot handle Amira's HxZip encoding (which is subtly different from gzip)")
+    nrrdfile=paste(file,sep=".","nhdr")
+    cat("NRRD0004\n",file=nrrdfile)
+    fc=file(nrrdfile,open="at") # ie append, text mode
+    nrrdType=ifelse(dtype=="byte","uint8",dtype)
+    
+    cat("encoding:", ifelse(enc=="text","text","raw"),"\n",file=fc)
+    cat("type: ",nrrdType,"\n",sep="",file=fc)
+    cat("endian: ",endian,"\n",sep="",file=fc)
+    # Important - this sets the offset in the amiramesh file from which
+    # to start reading data
+    cat("byte skip:",file.info(file)$size,"\n",file=fc)
+    cat("dimension: ",length(lattice),"\n",sep="",file=fc)
+    cat("sizes:",lattice,"\n",file=fc)
+    voxdims=voxdims(x)
+    if(!is.null(voxdims)) cat("spacings:",voxdims,"\n",file=fc)
+    if(!is.null(BoundingBox)){
+      cat("axis mins:",matrix(BoundingBox,nrow=2)[1,],"\n",file=fc)
+      cat("axis maxs:",matrix(BoundingBox,nrow=2)[2,],"\n",file=fc)
+    }
+    cat("data file: ",basename(file),"\n",sep="",file=fc)
+    cat("\n",file=fc)
+    close(fc)
+  }
+  
+  if(enc=='text'){
+    write(as.vector(d, mode=dmode), ncolumns=1, file=file, append=TRUE)
+  } else {
+    fc=file(file,open="ab") # ie append, bin mode
+    if(enc=="hxzip")
+      writeBin(zlibdata, fc, size=1, endian=endian)
+    else
+      writeBin(as.vector(d, mode=dmode), fc, size=dtypesize, endian=endian)
+    close(fc)
+  }
+}
+

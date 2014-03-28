@@ -26,9 +26,10 @@ set or a list of length 2 for a paired landmark set.
 Read and Write Amira Landmarks files
 }
 \seealso{
-Other amira: \code{\link{amiratype}};
-\code{\link{is.amiramesh}}; \code{\link{read.amiramesh}},
+Other amira: \code{\link{amiratype}}; \code{\link{hxsurf}},
+\code{\link{read.hxsurf}}; \code{\link{is.amiramesh}};
+\code{\link{read.amiramesh}},
 \code{\link{read.amiramesh.header}};
-\code{\link{read.hxsurf}}
+\code{\link{write.hxsurf}}
 }
 

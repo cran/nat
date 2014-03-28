@@ -114,21 +114,24 @@ nlapply<-function (X, FUN, ...){
 #'   levels against the named elements of colpal. If col evaluates to a factor 
 #'   and colpal is a function then it will be used to generate colours with the 
 #'   same number of levels as are used in col.
-#' @param x a neuron list (where omitted will use MyNeurons as default)
+#' @param x a neuron list or, for \code{plot3d.character}, a character vector of
+#'   neuron names. The default neuronlist used by plot3d.character can be set by
+#'   using \code{options(nat.default.neuronlist='mylist')}. See
+#'   ?\code{\link{nat}} for details. \code{\link{nat-package}}.
 #' @param subset Expression evaluating to logical mask for neurons. See details.
 #' @param col An expression specifying a colour evaluated in the context of the 
 #'   dataframe attached to nl (after any subsetting). See details.
 #' @param colpal A vector of colours or a function that generates colours
 #' @param skipRedraw When plotting more than this many (default 200) neurons 
 #'   skip redraw for individual neurons (this is much faster for large number of
-#'   neurons). Can also accept logical values TRUE (always skip) FALSE (never
+#'   neurons). Can also accept logical values TRUE (always skip) FALSE (never 
 #'   skip).
 #' @param ... options passed on to plot3d (such as colours, line width etc)
 #' @return list of values of \code{plot3d} with subsetted dataframe as attribute
 #'   \code{'df'}
 #' @export
 #' @method plot3d neuronlist
-#' @rdname plot3d.neuronlist
+#' @seealso \code{\link{nat-package}}
 #' @examples
 #' open3d()
 #' plot3d(kcs20,type=='gamma',col='green')
@@ -238,7 +241,7 @@ plot3d.neuronlist<-function(x,subset,col=NULL,colpal=rainbow,skipRedraw=200,...)
 #'   been set and then use x as an identifier to find a neuron in that 
 #'   neuronlist.
 plot3d.character<-function(x, ...) {
-  nl=get(getOption('nat.default.neuronlist'))
+  nl=get(getOption('nat.default.neuronlist', default=stop('Option "nat.default.neuronlist" is not set. See ?nat for details.')))
   if(!is.neuronlist(nl)) 
     stop("Please set options(nat.default.neuronlist='myfavneuronlist'). ',
          'See ?nat for details.")
@@ -386,28 +389,70 @@ subset.neuronlist<-function(x, subset, filterfun,
     if(is.function(r)) stop("Use of subset with functions is deprecated. ",
                             "Please use filterfun argument")
     if(is.logical(r) || is.integer(r) ){
-      r=nx[r]
+      r=nx[r & !is.na(r)]
     } else if(is.character(r)) {
       # check against names
-      missing_names=setdiff(r,nx)
-      if(length(missing_names)) warning("There are ",length(missing_names),' missing names.')
-      r=setdiff(r,missing_names)
+      missing_names=setdiff(r, nx)
+      if(length(missing_names))
+        warning("There are ",length(missing_names),' missing names.')
+      r=setdiff(r, missing_names)
     }
   }
   # now apply filterfun to remaining neurons
   if(length(r) && !missing(filterfun)) {
-    filter_results=rep(NA,length(r))
+    filter_results=rep(NA, length(r))
     # use for loop because neuronlists are normally large but not long
     for(i in seq_along(r)){
       tf=try(filterfun(x[[r[i]]]))
-      if(!inherits(tf,'try-error')) filter_results[i]=tf
+      if(!inherits(tf, 'try-error')) filter_results[i]=tf
     }
     r=r[filter_results]
     if(any(is.na(filter_results))) {
-      warning("filterfun failed to evaluate for",sum(is.na(r)),'entries in neuronlist')
+      warning("filterfun failed to evaluate for ", sum(is.na(r)),
+              ' entries in neuronlist')
       r=na.omit(r)
     }
   }
   
-  switch(rval,neuronlist=x[r],names=r,data.frame=df[r,])
+  switch(rval, neuronlist=x[r], names=r, data.frame=df[r, ])
+}
+
+#' Find names of neurons within a 3d selection box (usually drawn in rgl window)
+#' 
+#' @details Uses \code{\link{subset.neuronlist}}, so can work on dotprops or 
+#'   neuron lists.
+#' @param sel3dfun A \code{\link{select3d}} style function to indicate if points
+#'   are within region
+#' @param indices Names of neurons to search (defaults to all neurons in list)
+#' @param db \code{neuronlist} to search. Can also be a character vector naming
+#'   the neuronlist. Defaults to \code{options('nat.default.neuronlist')}.
+#' @param threshold More than this many points must be present in region
+#' @return Character vector of names of selected neurons
+#' @export
+#' @seealso \code{\link{select3d}, \link{subset.neuronlist}}
+#' @examples
+#' \dontrun{
+#' plot3d(kcs20)
+#' # draw a 3d selection e.g. around tip of vertical lobe when ready
+#' find.neuron(db=kcs20)
+#' # would return 9 neurons
+#' # make a standalone selection function
+#' vertical_lobe=select3d()
+#' find.neuron(vertical_lobe, db=kcs20)
+#' # use base::Negate function to invert the selection function 
+#' # i.e. choose neurons that do not overlap the selection region
+#' find.neuron(Negate(vertical_lobe), db=kcs20)
+#' }
+find.neuron<-function(sel3dfun=select3d(), indices=names(db), 
+                      db=getOption("nat.default.neuronlist"), threshold=0){
+  
+  if(is.null(db))
+    stop("Please pass a neuronlist in argument db or set options",
+         "(nat.default.neuronlist='myfavneuronlist'). See ?nat for details.")
+  if(is.character(db)) db=get(db)
+  selfun=function(x){
+    pointsinside=sel3dfun(xyzmatrix(x))
+    sum(pointsinside, na.rm=T)>threshold
+  }
+  subset(db, subset=indices, filterfun=selfun, rval='names')
 }
