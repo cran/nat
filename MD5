@@ -1,6 +1,6 @@
-4b9cb2e92c7abc4c9c7d71ba42d3d4be *DESCRIPTION
+c2a6bf3114ba9d5b3df3a4cae795bdda *DESCRIPTION
 7766d4dc7270abfb18ee33464370e637 *NAMESPACE
-af8022978979e063c8a323fe0a8a5ec0 *NEWS
+8b50eb2e1386f31dcfcafa32861d4cc9 *NEWS
 f7321ddd62d35ecf0669a7b124ae839e *R/amiralandmarks-io.R
 fed763b5e6d6734c42baaca96b15a12c *R/amiramesh-io.R
 2b70fe1caacbd1028f5b98958efcbda7 *R/cmtk-reformat.R
@@ -18,7 +18,7 @@ db1b208c0ab98fa857414a1576a82599 *R/nat-data.R
 e24ad1aee3e04bd8280e0dcff1d75111 *R/neuron-io-amira.R
 779afa8ab628f070e2cc9da6ae0ef23f *R/neuron-io.R
 4b9e8f5a8f5f8eb92a96daf742448bee *R/neuron-plot.R
-9e9820784a56bc43cc58f031bd0a3765 *R/neuron.R
+bda060cdd41ff8037f96e15488dd76d0 *R/neuron.R
 d33f05a9d14d66bcd142bfa02021750c *R/neuronlist.R
 9d9bf769168cead3ee89393b52a6009e *R/neuronlistfh.R
 53ee9039641fc8ad6de87c3e11282c14 *R/ngraph.R
@@ -135,8 +135,8 @@ fc16e689a6f0e63bbd72249cf91d03d3 *tests/testthat/test-cmtk_geometry.R
 00f5309ed3fe667880dd3505d1f4566c *tests/testthat/test-hxsurf.R
 53211e4e5eb72bd7b4fb52399dfd6f1f *tests/testthat/test-im3d.R
 a576b934831c74a9a5097cf75a33576e *tests/testthat/test-ndigest.R
-dbbe50739aaee3a81f4c4f918d8ed0ab *tests/testthat/test-neuron-io.R
-b0b35eb0584ca055c4ccbd53b4beea99 *tests/testthat/test-neuron.R
+327baa92a70cc90f7fad9d2748c5ee22 *tests/testthat/test-neuron-io.R
+4824d595e36dc60653f3ceb16c79451f *tests/testthat/test-neuron.R
 c2690af276a87b6cabf94da09474e205 *tests/testthat/test-neuronlist.R
 12226264d3de743b3f4cfe4cac0a8a45 *tests/testthat/test-neuronlistfh.R
 98d66bad487298cfb267bfbcb8b78116 *tests/testthat/test-ngraph.R
