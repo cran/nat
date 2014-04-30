@@ -1,32 +1,18 @@
-#' Create and test objects of neuronlist class to store multiple neurons
+#' Create a neuronlist from zero or more neurons
 #' 
 #' @description \code{neuronlist} objects consist of a list of neuron objects 
 #'   along with an optional attached dataframe containing information about the 
 #'   neurons. \code{neuronlist} objects can be indexed using their name or the 
 #'   number of the neuron like a regular list. If the \code{[} operator is used
 #'   to index the list, the attached dataframe will also be subsetted.
-#' @rdname neuronlist
-#' @family neuronlist
-#' @description \code{is.neuronlist} Test if object is a neuronlist
-#'   
-#' @details  \code{is.neuronlist} Uses a relaxed definition to cope with older 
-#'   lists of neurons that do not have a class attribute of neuronlist
-#' @param x A neuronlist object
-#' @return return value
-#' @export
-is.neuronlist<-function(x) {
-  inherits(x,"neuronlist") ||
-    (is.list(x) && length(x)>1 && is.neuron(x[[1]]))
-}
-
-#' Create a neuronlist from zero or more neurons
 #' 
 #' It is perfectly acceptable not to pass any parameters, generating an empty 
 #' neuronlist
 #' @param ... objects to be turned into a list
-#' @param DATAFRAME an optional data.frame to attach to the neuronlist
+#' @param DATAFRAME an optional \code{data.frame} to attach to the neuronlist
 #'   containing information about each neuron.
-#' @return return value
+#' @return A new neuronlist object.
+#' @family neuronlist
 #' @export
 #' @examples
 #' # generate an empty neuronlist
@@ -34,6 +20,21 @@ is.neuronlist<-function(x) {
 #' # slice an existing neuronlist with regular indexing
 #' kcs5=kcs20[1:5]
 neuronlist <- function(..., DATAFRAME=NULL) as.neuronlist(list(...), df=DATAFRAME)
+
+#' Test objects of neuronlist class to store multiple neurons
+#' 
+#' Tests if object is a neuronlist.
+#' 
+#' @details \code{is.neuronlist} uses a relaxed definition to cope with older 
+#'   lists of neurons that do not have a class attribute of neuronlist.
+#' @param x the object to test
+#' @return A logical indicating whether the object is a neuronlist.
+#' @family neuronlist
+#' @export
+is.neuronlist<-function(x) {
+  inherits(x,"neuronlist") ||
+    (is.list(x) && length(x)>1 && is.neuron(x[[1]]))
+}
 
 #' Make a list of neurons that can be used for coordinate plotting/analysis
 #'
@@ -84,25 +85,55 @@ as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
   nl2
 }
 
-#' lapply for neuronlists
-#'
+#' lapply and mapply for neuronlists
+#' 
 #' Looks after class and any attached dataframe.
 #' @param X A neuronlist
 #' @param FUN Function to be applied to each element of X
-#' @param ... Additional arguments for FUN
+#' @param ... Additional arguments for FUN (see details)
 #' @return A neuronlist
 #' @export
 #' @seealso \code{\link{lapply}}
 #' @family neuronlist
 #' @examples
-#' kcs.flipped=nlapply(kcs20,xform,reg=function(x, ...) x*c(-1,1,1) )
+#' ## nlapply example
+#' kcs.reduced=nlapply(kcs20,function(x) subset(x,sample(nrow(x$points),50)))
 #' open3d()
-#' plot3d(kcs20,col='red')
-#' plot3d(kcs.flipped,col='green')
+#' plot3d(kcs.reduced,col='red', lwd=2)
+#' plot3d(kcs20,col='grey')
+#' rgl.close()
+#' 
+#' ## nmapply example
+#' # flip first neuron in X, second in Y and 3rd in Z
+#' xyzflip=nmapply(mirror, kcs20[1:3], mirrorAxis = c("X","Y","Z"),
+#'  mirrorAxisSize=c(400,20,30))
+#' open3d()
+#' plot3d(kcs20[1:3])
+#' plot3d(xyzflip)
 #' rgl.close()
 nlapply<-function (X, FUN, ...){
   cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X) else c("neuronlist",'list')
   structure(lapply(X,FUN,...),class=cl,df=attr(X,'df'))
+}
+
+#' @inheritParams base::mapply
+#' @details Note that for \code{nmapply} the first argument in \dots must be a
+#'   \code{neuronlist}
+#' @rdname nlapply
+#' @seealso \code{\link{mapply}}
+#' @export
+nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE){
+  if(missing(...))
+    stop("First argument in ... must be a neuronlist!")
+  
+  X<-pairlist(...)[[1]]
+  if(!is.neuronlist(X))
+    stop("First argument in ... must be a neuronlist!")
+  cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X)
+  else c("neuronlist",'list')
+  
+  structure(mapply(FUN, ..., MoreArgs = MoreArgs, SIMPLIFY = SIMPLIFY,
+                   USE.NAMES = USE.NAMES), class=cl, df=attr(X, 'df'))
 }
 
 #' 3D plots of the elements in a neuronlist, optionally using a subset 
@@ -217,6 +248,7 @@ plot3d.neuronlist<-function(x,subset,col=NULL,colpal=rainbow,skipRedraw=200,...)
   # Speed up drawing when there are lots of neurons
   if(is.numeric(skipRedraw)) skipRedraw=ifelse(length(x)>skipRedraw,TRUE,FALSE)
   if(is.logical(skipRedraw)) {
+    if(par3d()$skipRedraw) skipRedraw=TRUE
     op=par3d(skipRedraw=skipRedraw)
     on.exit(par3d(op))
   }

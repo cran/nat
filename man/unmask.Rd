@@ -52,7 +52,8 @@ image(imslice(stripes,11), asp=TRUE)
 }
 }
 \seealso{
-Other im3d: \code{\link{boundingbox}},
+Other im3d: \code{\link{as.im3d}},
+\code{\link{as.im3d.im3d}}; \code{\link{boundingbox}},
 \code{\link{boundingbox.default}},
 \code{\link{boundingbox.im3d}},
 \code{\link{boundingbox<-}}; \code{\link{ijkpos}},

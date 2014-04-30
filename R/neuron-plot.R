@@ -172,7 +172,6 @@ pan3d <- function(button) {
 #' @param EPsOnly whether points should only be drawn for end points.
 #' @param BPsOnly whether points should only be drawn for branch points.
 #' @param WithText whether to label plotted points with their id.
-#' @param UseCurPalette whether the current palette should be used for colors.
 #' @param PlotAxes the axes for the plot.
 #' @param Axes whether axes should be drawn.
 #' @param asp the \code{y/x} aspect ratio, see \code{\link{plot.window}}.
@@ -204,30 +203,23 @@ pan3d <- function(button) {
 #' # Just plot the end points for the fourth example neuron
 #' plot(Cell07PNs[[4]], EPsOnly=TRUE)
 plot.neuron <- function(x, WithLine=TRUE, NodesOnly=TRUE, EPsOnly=FALSE,
-                        BPsOnly=FALSE, WithText=FALSE, UseCurPalette=FALSE,
+                        BPsOnly=FALSE, WithText=FALSE,
                         PlotAxes=c("XY", "YZ", "XZ", "ZY"), Axes=TRUE, asp=1,
                         MainTitle=x$NeuronName, xlim=NULL, ylim=NULL,
                         AxisDirections=c(1,-1,1), Superimpose=F, LineCol=NULL,
                         PointAlpha=1, tck=NA, lwd=par("lwd"), ...) {
   
   # R uses the bottom-left as the origin, while we want the top-left
-  if(any(AxisDirections!=1)) {
-    x$d[,c("X","Y","Z")]=t(t(x$d[,c("X","Y","Z")])*AxisDirections)
-  }
   PlotAxes <- match.arg(PlotAxes)
   if(PlotAxes=="XY") {PlotAxes<-c("X","Y");NumPlotAxes<-c(1,2)} else
     if(PlotAxes=="YZ") {PlotAxes<-c("Y","Z");NumPlotAxes<-c(2,3)} else
       if(PlotAxes=="XZ") {PlotAxes<-c("X","Z");NumPlotAxes<-c(1,3)} else 
         if(PlotAxes=="ZY") {PlotAxes<-c("Z","Y");NumPlotAxes<-c(3,2)}
-  
-  OldPalette<-palette()
-  if(!UseCurPalette) {
-    palette(c("black",rainbow(6)))
-  }
     
-  # Set limits for axes
-  myxlims<-range(x$d[PlotAxes[1]],na.rm = TRUE)
-  myylims<-range(x$d[PlotAxes[2]],na.rm = TRUE)
+  # Set limits for axes (inverting y axis if necessary due to differing handedness)
+  myxlims <- range(x$d[PlotAxes[1]],na.rm = TRUE)
+  myylims <- if(PlotAxes[2] == "Y") rev(range(x$d[PlotAxes[2]],na.rm = TRUE)) else range(x$d[PlotAxes[2]],na.rm = TRUE)
+    
   if (!is.null(xlim)) {
     myxlims=xlim
   }
@@ -241,15 +233,16 @@ plot.neuron <- function(x, WithLine=TRUE, NodesOnly=TRUE, EPsOnly=FALSE,
     PlottedPoints<-x$d[NodesOnly,c("PointNo",PlotAxes)]
   } else if(BPsOnly) {
     NodesOnly<-x$BranchPoints
-    mycols<-rep("red",length(x$BranchPoints))
+    mycols<-rep(rgb(1,0,0,PointAlpha),length(x$BranchPoints))
     PlottedPoints<-x$d[NodesOnly,c("PointNo",PlotAxes)]
   } else if(NodesOnly) {
     NodesOnly<-c(x$BranchPoints,x$EndPoints,x$StartPoint)
-    mycols<-c(rep("red",length(x$BranchPoints)),
-              rep("green",length(x$EndPoints)),"purple" )
+    mycols<-c(rep(rgb(1,0,0,PointAlpha),length(x$BranchPoints)),
+              rep(rgb(0,1,0,PointAlpha),length(x$EndPoints)),
+              rgb(t(col2rgb('purple')/255),alpha=PointAlpha) )
     PlottedPoints<-x$d[NodesOnly,c("PointNo",PlotAxes)]
   } else {
-    mycols<-rep("black",x$NumPoints)
+    mycols<-rep("red",x$NumPoints)
     mycols[x$BranchPoints]<-"red"
     mycols[x$EndPoints]<-"green"
     mycols[x$StartPoint]<-"purple"
@@ -260,21 +253,12 @@ plot.neuron <- function(x, WithLine=TRUE, NodesOnly=TRUE, EPsOnly=FALSE,
   if(Superimpose) points(PlottedPoints[,PlotAxes],col=mycols,pch=20,asp=asp,...) 
   else plot(PlottedPoints[,PlotAxes],col=mycols,pch=20,xlim=myxlims,ylim=myylims,
             main=MainTitle,asp=asp,axes=Axes && all(AxisDirections==1),tck=tck,...) 
-  if(Axes && !all(AxisDirections==1) && !Superimpose) {
-    # Need to provide special treatment for axes
+  
+  # Draw the axes and surrounding box
+  if(Axes) {
     box()
-    if(AxisDirections[NumPlotAxes][1]!=1) {
-      axis(1, at=axTicks(1),tck=tck,
-           labels=axTicks(1)*AxisDirections[NumPlotAxes][1])
-    } else {
-      axis(tck=tck,1)
-    }
-    if(AxisDirections[NumPlotAxes][2]!=1) {
-      axis(2, at=axTicks(2),tck=tck,
-           labels=axTicks(2)*AxisDirections[NumPlotAxes][2])
-    } else {
-      axis(tck=tck,2)
-    }
+    axis(2, tck=tck)
+    axis(1, tck=tck)
   }
   
   if(WithText) {
@@ -303,6 +287,5 @@ plot.neuron <- function(x, WithLine=TRUE, NodesOnly=TRUE, EPsOnly=FALSE,
            x$c$GrandCent[NumPlotAxes[2]],col="red",bg="red",pch=22)
   }
   
-  palette(OldPalette)
   invisible(PlottedPoints)
 }

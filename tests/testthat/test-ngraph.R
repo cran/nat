@@ -64,3 +64,37 @@ test_that("equivalence of seglist and swc methods for as.ngraph.neuron",{
   expect_equal(g2,g2s)
   expect_equal(g3,g3s)
 })
+
+test_that("we can find the length of the spine of a neuron", {
+  n <- Cell07PNs[[1]]
+  spine.length <- spine(n, LengthOnly = TRUE)
+  spine.length.expected <- 186.085903694106
+  expect_equal(spine.length, spine.length.expected, tolerance=1e-4)
+})
+
+test_that("we can find the path of the spine of a neuron", {
+  n <- Cell07PNs[[1]]
+  expect_is(spine <- spine(n), 'neuron')
+  spine.expected <- readRDS('testdata/neuron/testCell07PNs1_spine.rds')
+  expect_equal(spine, spine.expected)
+})
+
+test_that("setting of graph attributes",{
+  gatts=list(name='testneuron',nclass="PN")
+  expect_is(testg <- as.ngraph(testd, graph.attributes = gatts), 'ngraph')
+  expect_equal(get.graph.attribute(testg, name = 'class'), gatts$class)
+  expect_equal(get.graph.attribute(testg, name = 'name'), gatts$name)
+})
+
+test_that("graph weights can be calculated and set",{
+  # weights for a neuron with unit length segments
+  g1=as.ngraph(testd, weights=TRUE)
+  expect_is(g2 <- as.ngraph(testd, weights=FALSE), 'ngraph')
+  expect_equal(igraph::E(g1)$weight, rep(1, 5))
+  expect_equal(igraph::diameter(g1), igraph::diameter(g2))
+  g1=as.ngraph(testd, weights=rep(2,5))
+  expect_equal(igraph::E(g1)$weight, rep(2, 5))
+  
+  g3=as.ngraph(Cell07PNs[[1]], weights=TRUE)
+  expect_equal(sum(igraph::E(g3)$weight), 297.1763, tolerance=1e-4)
+})

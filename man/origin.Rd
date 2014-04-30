@@ -17,7 +17,8 @@ box, which in turn matches the nrrd definition of the
 location of the "centre" of the first voxel.
 }
 \seealso{
-Other im3d: \code{\link{boundingbox}},
+Other im3d: \code{\link{as.im3d}},
+\code{\link{as.im3d.im3d}}; \code{\link{boundingbox}},
 \code{\link{boundingbox.default}},
 \code{\link{boundingbox.im3d}},
 \code{\link{boundingbox<-}}; \code{\link{ijkpos}},

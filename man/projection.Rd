@@ -41,13 +41,22 @@ would be better justified.
 \examples{
 \dontrun{
 LHMask=read.im3d(system.file('tests/testthat/testdata/nrrd/LHMask.nrrd',package='nat'))
+d=unmask(rnorm(sum(LHMask),mean=5,sd=5),LHMask)
+op=par(mfrow=c(1,2))
+rval=image(projection(d,projfun=max))
+image(projection(d,projfun=clampmax(0,10)),zlim=rval$zlim)
+par(op)
+}
+\dontrun{
+LHMask=read.im3d(system.file('tests/testthat/testdata/nrrd/LHMask.nrrd',package='nat'))
 image(projection(LHMask),asp=TRUE)
 }
 }
 \seealso{
-\code{\link{groupGeneric}}
+\code{\link{groupGeneric}}, \code{\link{clampmax}}
 
-Other im3d: \code{\link{boundingbox}},
+Other im3d: \code{\link{as.im3d}},
+\code{\link{as.im3d.im3d}}; \code{\link{boundingbox}},
 \code{\link{boundingbox.default}},
 \code{\link{boundingbox.im3d}},
 \code{\link{boundingbox<-}}; \code{\link{ijkpos}},

@@ -39,7 +39,8 @@ x=im3d(rnorm(1000),dims=c(10,10,10), BoundingBox=c(20,200,100,200,200,300))
 stopifnot(all.equal(threshold(x, 0), threshold(x, x>0)))
 }
 \seealso{
-Other im3d: \code{\link{boundingbox}},
+Other im3d: \code{\link{as.im3d}},
+\code{\link{as.im3d.im3d}}; \code{\link{boundingbox}},
 \code{\link{boundingbox.default}},
 \code{\link{boundingbox.im3d}},
 \code{\link{boundingbox<-}}; \code{\link{ijkpos}},

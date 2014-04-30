@@ -16,13 +16,14 @@
 #' @param origin the location (or centre) of the first voxel
 #' @param BoundingBox,bounds Physical extent of image. See the details section 
 #'   of \code{\link{boundingbox}}'s help for the distinction.
+#' @param ... Additional attributes such as units or materials
 #' @return An array with additional class \code{im3d}
 #' @details We follow Amira's convention of setting the bounding box equal to 
 #'   voxel dimension (rather than 0) for any dimension with only 1 voxel.
 #' @export
 #' @family im3d
 im3d<-function(x=numeric(0), dims=NULL, voxdims=NULL, origin=NULL,
-               BoundingBox=NULL, bounds=NULL){
+               BoundingBox=NULL, bounds=NULL, ...){
   if(inherits(x,'im3d')){
     if(is.null(dims)) dims=x
   } else class(x)<-c("im3d",class(x))
@@ -64,8 +65,28 @@ im3d<-function(x=numeric(0), dims=NULL, voxdims=NULL, origin=NULL,
   attr(x,"x")<-seq(BoundingBox[1],BoundingBox[2],len=dims[1])
   attr(x,"y")<-seq(BoundingBox[3],BoundingBox[4],len=dims[2])
   attr(x,"z")<-seq(BoundingBox[5],BoundingBox[6],len=dims[3])
+  # add any additional attributes
+  if(!missing(...)){
+    pl<-pairlist(...)
+    for(n in names(pl)) attr(x,n)=pl[[n]]
+  }
   x
 }
+
+#' Convert a suitable object to an im3d object.
+#' 
+#' This is a largely a placeholder function with the expectation that other 
+#' packages may wish to provide suitable methods.
+#' @param x Object to turn into an im3d
+#' @param ... Additional arguments to pass to methods.
+#' @export
+#' @seealso im3d
+#' @family im3d
+as.im3d <- function(x, ...) UseMethod("as.im3d")
+
+#' @export
+#' @rdname as.im3d
+as.im3d.im3d <- function(x, ...) x
 
 #' Read/Write calibrated 3D blocks of image data
 #' 
@@ -131,7 +152,13 @@ read.im3d.amiramesh<-function(file, ...){
   # BoundingBox
   bb=attr(d,'Parameters')$BoundingBox
   origin <- if(length(bb)) bb[c(1,3,5)] else NULL
-  im3d(d, dims=attr(d,'dataDef')$Dims[[1]], BoundingBox=bb, origin=origin)
+  materials <-attr(d,'Parameters')$Materials
+  if(!is.null(materials)) {
+    materials=data.frame(name=names(materials), id=seq_along(materials),
+                         stringsAsFactors = FALSE)
+  }
+  im3d(d, dims=attr(d,'dataDef')$Dims[[1]], BoundingBox=bb, origin=origin,
+       materials=materials)
 }
 
 #' Return voxel dimensions of an object
@@ -425,7 +452,7 @@ image.im3d<-function(x, xlim=NULL, ylim=NULL, zlim=NULL,
       if(identical(ras, "non-missing")) useRaster <- all(!is.na(z))
     }
     image(x=x, y=y, z=z, zlim=zlim, xlim=xlim, ylim=ylim, col=col, asp=asp,
-          axes=FALSE, xlab=plotdims[1], ylab=plotdims[2], useRaster=useRaster, ...)
+          axes=FALSE, xlab=if(is.null(xlab)) plotdims[1] else xlab, ylab=if(is.null(xlab)) plotdims[2] else ylab, useRaster=useRaster, ...)
   }
   if(axes){
     axis(2,pretty(par("usr")[3:4]),abs(pretty(par("usr")[3:4])))
@@ -456,10 +483,18 @@ image.im3d<-function(x, xlim=NULL, ylim=NULL, zlim=NULL,
 #'   location and the BoundingBox extremes are set to 0 after a projection is
 #'   made but FIXME this is not completely satisfactory. Perhaps defining this
 #'   to be NA or the midpoint of the orginal axis would be better justified.
-#' @seealso \code{\link{groupGeneric}}
+#' @seealso \code{\link{groupGeneric}}, \code{\link{clampmax}}
 #' @export
 #' @family im3d
 #' @examples
+#' \dontrun{
+#' LHMask=read.im3d(system.file('tests/testthat/testdata/nrrd/LHMask.nrrd',package='nat'))
+#' d=unmask(rnorm(sum(LHMask),mean=5,sd=5),LHMask)
+#' op=par(mfrow=c(1,2))
+#' rval=image(projection(d,projfun=max))
+#' image(projection(d,projfun=clampmax(0,10)),zlim=rval$zlim)
+#' par(op)
+#' }
 #' \dontrun{
 #' LHMask=read.im3d(system.file('tests/testthat/testdata/nrrd/LHMask.nrrd',package='nat'))
 #' image(projection(LHMask),asp=TRUE)
@@ -739,8 +774,14 @@ threshold.im3d<-function(x, threshold=0,
 
 #' Return function that finds maximum of its inputs within a clamping range
 #' 
+#' @details Note that by default infinite values in the input vector are 
+#'   converted to \code{NA}s before the being compared with the clampmax range.
 #' @param xmin,xmax clamping range. If xmax is missing xmin should be a vector 
 #'   of length 2.
+#' @param replace.infinite The value with which to replace non-finite values 
+#'   \emph{in the input vector}. When code{replace.infinite=FALSE} no action is 
+#'   taken. The default value of \code{NA} will result in e.g. \code{Inf} being 
+#'   mapped to \code{NA}.
 #' @return A function with signature \code{f(x, ..., na.rm)}
 #' @export
 #' @examples
@@ -752,21 +793,20 @@ threshold.im3d<-function(x, threshold=0,
 #' image(projection(d,projfun=clampmax(0,10)),zlim=rval$zlim)
 #' par(op)
 #' }
-clampmax<-function(xmin,xmax) {
-  # this fn returns a new function that will find the maximum of its inputs
-  # and then clamp the return value between xmin and xmax
-  # +/- Inf are converted to NA
+clampmax<-function(xmin, xmax, replace.infinite=NA_real_) {
   if(missing(xmax)) {
     xmax=xmin[2]
     xmin=xmin[1]
   }
   function(x, ..., na.rm=FALSE){
-    r=suppressWarnings(max(x, ..., na.rm=na.rm))
-    if(!is.finite(r))
-      NA
-    else if(r<xmin)
+    if(!missing(...)) x=c(x, unlist(pairlist(...)))
+    if(!is.logical(replace.infinite) || !isTRUE(!replace.infinite)){
+      x[!is.finite(x)]=replace.infinite
+    }
+    r=suppressWarnings(max(x, na.rm=na.rm))
+    if(isTRUE(r<xmin))
       xmin 
-    else if(r>xmax)
+    else if(isTRUE(r>xmax))
       xmax
     else r
   }
@@ -918,4 +958,59 @@ ijkpos<-function(d, xyz, roundToNearestPixel=TRUE)
     if(any(ijk<1) || any(ijk>dim(d))) warning("pixel coordinates outside image data")
   }
   if(is.matrix(ijk)) t(ijk) else ijk
+}
+
+#' Extract or set the materials for an object
+#' @details Note that the id column will be the 1-indexed order that the
+#'   material appears in the \code{surf$Region} list for \code{hxsurf} objects
+#'   and the 0-indexed mask values for a nrrd
+#' @param x An object in memory or, for \code{materials.character}, an image on 
+#'   disk.
+#' @param \dots additional parameters passed to methods (presently ignored)
+#' @return A \code{data.frame} with columns \code{name, id, col}
+#' @export
+materials<-function(x, ...) UseMethod("materials")
+
+#' @export
+#' @rdname materials
+#' @method materials default
+materials.default<-function(x, ...) {
+  m=attr(x,'materials')
+}
+
+#' @description \code{materials.character} will read the materials from an im3d
+#'   compatible image file on disk.
+#' @export
+#' @rdname materials
+#' @method materials character
+materials.character<-function(x, ...) {
+  i=read.im3d(x, ..., ReadData = FALSE)
+  materials(i)
+}
+
+#' @description \code{materials.character} will read the materials from an im3d 
+#'   compatible image file.
+#' @export
+#' @rdname materials
+#' @method materials hxsurf
+materials.hxsurf<-function(x, ...) {
+  m=data.frame(name=names(x$Regions),id=seq_along(x$Regions),
+                col=x$RegionColourList, stringsAsFactors = FALSE)
+  rownames(m)=m$name
+  m
+}
+
+`materials<-`<-function(x, value) UseMethod("materials<-")
+
+`materials<-.hxsurf`<-function(x, value) {
+  stop("materials<-.hxsurf is not implemented")
+}
+
+`materials<-.default`<-function(x, value) {
+  if(!is.data.frame(value))
+    stop("materials<- expects a data.frame")
+  if(!all(c("name",'id') %in% names(value)))
+    stop("must supply a data.frame with columns name, id")
+  attr(x,'materials') <- value
+  x
 }

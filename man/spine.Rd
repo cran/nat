@@ -1,0 +1,36 @@
+\name{spine}
+\alias{spine}
+\title{Compute the longest path (aka spine or backbone) of a neuron}
+\usage{
+spine(n, SpatialWeights = TRUE, LengthOnly = FALSE)
+}
+\arguments{
+  \item{n}{the neuron to consider.}
+
+  \item{SpatialWeights}{logical indicating whether spatial
+  distances (default) should be used to weight segments
+  instead of weighting each edge equally.}
+
+  \item{LengthOnly}{logical indicating whether only the
+  length of the longest path should be returned (when
+  \code{TRUE}) or whether a neuron pruned down to the the
+  sequence of vertices along the path should be returned
+  (\code{FALSE}, the default).}
+}
+\value{
+Either a neuron object corresponding to the longest path
+\emph{or} the length of the longest path when
+\code{LengthOnly=TRUE}).
+}
+\description{
+Compute the longest path (aka spine or backbone) of a
+neuron
+}
+\examples{
+plot3d(Cell07PNs[[1]])
+plot3d(spine(Cell07PNs[[1]]), lwd=4, col='black')
+}
+\seealso{
+\code{\link[igraph]{diameter}}
+}
+

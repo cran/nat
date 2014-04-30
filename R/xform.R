@@ -99,6 +99,14 @@ xform.neuronlist<-function(x, reg, ...){
 #' @export
 xyzmatrix<-function(x, ...) UseMethod("xyzmatrix")
 
+
+#' @method xyzmatrix neuronlist
+#' @export
+xyzmatrix.neuronlist<-function(x, ...) {
+  coords=lapply(x, xyzmatrix, ...)
+  do.call(rbind, coords)
+}
+
 #' @S3method xyzmatrix neuron
 xyzmatrix.neuron<-function(x, ...) x$d[,c("X","Y","Z")]
 
@@ -205,7 +213,9 @@ mirror<-function(x, ...) UseMethod('mirror')
 #' @param mirrorAxisSize The bounding box of the axis to mirror
 #' @param mirrorAxis Axis to mirror (default \code{"X"}). Can also be an integer
 #'   in range \code{1:3}.
-#' @param warpfile Path to (optional) CMTK registration
+#' @param warpfile Path to (optional) CMTK registration that specifies a
+#'   (usually non-rigid) transformation to be applied \emph{after} the simple
+#'   mirroring.
 #' @param transform whether to use warp (default) or affine component of 
 #'   registration, or simply flip about midplane of axis.
 #' @method mirror default
@@ -221,15 +231,17 @@ mirror.default<-function(x, mirrorAxisSize, mirrorAxis=c("X","Y","Z"),
   if(length(mirrorAxis)!=1 || is.na(mirrorAxis) || mirrorAxis<0 || mirrorAxis>3)
     stop("Invalid mirror axis")
   
-  # start by flipping along mirror axis
-  xyz=xyzmatrix(x)
-  xyz[,mirrorAxis]=mirrorAxisSize-1*xyz[,mirrorAxis]
-  xyzmatrix(x)=xyz
+  # construct homogeneous affine mirroring transform
+  mirrormat=diag(4)
+  mirrormat[mirrorAxis, 4]=mirrorAxisSize
+  mirrormat[mirrorAxis, mirrorAxis]=-1
   
-  # then 
   if(is.null(warpfile) || transform=='flip') {
-    x
+    xform(x, reg=mirrormat, ...)
   } else {
+    # only apply xform once since this looks after e.g. recalculating dotprops
+    # vectors
+    xyzmatrix(x)=xformpoints(xyzmatrix(x), reg = mirrormat)
     xform(x, reg=warpfile, transformtype=transform, ...)
   }
 }

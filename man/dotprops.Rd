@@ -1,8 +1,10 @@
 \name{is.dotprops}
 \alias{as.dotprops}
 \alias{dotprops}
+\alias{dotprops.character}
 \alias{dotprops.default}
 \alias{dotprops.dotprops}
+\alias{dotprops.im3d}
 \alias{dotprops.neuron}
 \alias{dotprops.neuronlist}
 \alias{is.dotprops}
@@ -14,7 +16,11 @@ as.dotprops(x, ...)
 
 dotprops(x, ...)
 
+\method{dotprops}{character}(x, ...)
+
 \method{dotprops}{dotprops}(x, k = attr(x, "k"), ...)
+
+\method{dotprops}{im3d}(x, ...)
 
 \method{dotprops}{neuronlist}(x, ...)
 
@@ -50,6 +56,10 @@ points (extracting vertices from S3 objects that have them)
 \code{k} will default to 20 nearest neighbours when unset
 (i.e. when it has default value of NA) unless \code{x} is a
 dotprops object.
+
+\code{dotprops.dotprops} will deafult to the original vale
+of \code{k} and copy over all attributes that are not set
+by \code{dotprops.default}.
 }
 \references{
 The dotprops format is essentially identical to that
