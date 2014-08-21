@@ -14,6 +14,7 @@
 #'   \code{raw} vector rather than \code{integer} vector (default: FALSE).
 #' @param Verbose Print status messages
 #' @return list of named data chunks
+#' @importFrom nat.utils is.gzip
 #' @rdname amiramesh-io
 #' @export
 #' @seealso \code{\link{readBin}, \link{.Platform}}
@@ -136,7 +137,7 @@ read.amiramesh.ascii<-function(file, df, sections, Verbose=FALSE){
     if(df$DataLength[i]>0){
       # read some lines until we get to a data section
       nskip=0
-      while( substring(t<-readLines(con,1),1,1)!="@"){nskip=nskip+1}
+      while( substring(readLines(con,1),1,1)!="@"){nskip=nskip+1}
       if(Verbose) cat("Skipped",nskip,"lines to reach next data section")
       if(Verbose) cat("Reading ",df$DataLength[i],"lines in file",file,"\n")
       
@@ -287,11 +288,9 @@ read.amiramesh.header<-function(file, Parse=TRUE, Verbose=FALSE){
 .ParseAmirameshParameters<-function(textArray, CheckLabel=TRUE,ParametersOnly=FALSE){
   
   # First check what kind of input we have
-  closeConnectionWhenDone=TRUE
   if(is.character(textArray)) con=textConnection(textArray,open='r')
   else {
     con=textArray
-    closeConnectionWhenDone=FALSE
   }
   # empty list to store results
   l=list()
@@ -469,14 +468,6 @@ write.zlib<-function(uncompressed, con=raw()){
   d=memCompress(uncompressed, type='gzip')
   if(is.raw(con)) return(d)
   writeBin(object=d,con=con)
-}
-
-# Simple function to test if file is gzipped
-# TODO move this to the next release of nat.utils
-is.gzip<-function(f) {
-  x=file(f)
-  on.exit(close(x))
-  isTRUE(summary(x)$class=='gzfile')
 }
 
 #' Check if file is amiramesh format

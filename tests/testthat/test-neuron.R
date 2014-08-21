@@ -66,8 +66,33 @@ test_that("as.neuron.ngraph works",{
   n4=as.neuron2(g)
   expect_equal(n4,n3)
   
+  expect_equal(as.seglist(n), n$SegList)
+  
   expect_error(as.neuron(g, vertexData=matrix(ncol=4,nrow=igraph::vcount(g)+1)),
                info="as.neuron.ngraph fails when vertexData has too many rows")
+})
+
+test_that("use as.seglist with neurons",{
+  g=ngraph(c(0,1,1,2, 3,4,4,5,5,6, 7,8,8,9,9,10,10,11),vertexlabels=0:11)
+  n=as.neuron2(g,origin=0)
+  
+  full_seg_list=list(seglist(c(1,2,3)), seglist(c(8,9,10,11,12)), 
+                     seglist(c(4,5,6,7)))
+  full_seg_list_flat=seglist(c(1,2,3), c(8,9,10,11,12), c(4,5,6,7))
+  expect_equal(as.seglist(n, all=FALSE), full_seg_list[[1]])
+  expect_equal(as.seglist(n, all=TRUE), full_seg_list)
+  expect_equal(as.seglist(n, all=TRUE, flatten = TRUE), full_seg_list_flat)
+  
+  
+  
+  g2=ngraph(c(2,4,4,3,3,6,6,9,6,7),vertexlabels=c(2:4,6,7,9))
+  sl2=seglist(c(1,3,2,4),c(4,5),c(4,6))
+  n2=as.neuron2(g2, origin=2)
+  
+  expect_false(inherits(as.seglist(n2, all=TRUE), 'seglist'),
+               info='should be a list of seglists')
+  expect_equal(as.seglist(n2, all=FALSE), sl2)
+  expect_equal(as.seglist(n2, all=TRUE, flatten=TRUE), as.seglist(n2, all=FALSE))
 })
 
 test_that("we can set NeuronName when there is no input file",{
@@ -79,7 +104,11 @@ test_that("we can set NeuronName when there is no input file",{
 context("neuron plotting")
 
 test_that("we can plot neurons in 2D", {
+  my.pdf=tempfile(fileext = '.pdf')
+  on.exit(unlink(my.pdf))
+  pdf(file = my.pdf)
   plottedVertices <- plot(Cell07PNs[[1]])
+  dev.off()
   plottedVertices.expected <- structure(list(PointNo = c(34L, 48L, 51L, 75L, 78L, 95L, 98L, 99L, 108L, 109L, 115L, 119L, 135L, 143L, 160L, 169L, 1L, 42L, 59L, 62L, 80L, 85L, 96L, 100L, 102L, 112L, 117L, 121L, 134L, 148L, 154L, 165L, 172L, 180L, 1L), X = c(220.98664855957, 228.44807434082, 227.528900146484, 250.583908081055, 250.374450683594, 263.807434082031, 266.267333984375, 266.755706787109, 272.031951904297, 272.292327880859, 274.804351806641, 277.783020019531, 272.748596191406, 278.978912353516, 278.77392578125, 282.149841308594, 186.86604309082, 224.706741333008, 229.634338378906, 226.885482788086, 249.886367797852, 253.009902954102, 264.080108642578, 266.322326660156, 267.545959472656, 271.076171875, 274.612823486328, 277.391998291016, 287.121398925781, 281.795806884766, 276.655090332031, 278.328735351562, 282.306945800781, 289.536407470703, 186.86604309082), Y = c(100.98698425293, 95.4461364746094, 92.0755767822266, 96.9142990112305, 94.3393630981445, 99.7057647705078, 100.097373962402, 99.1845474243164, 104.97306060791, 104.184257507324, 102.846878051758, 103.363876342773, 105.580902099609, 101.788757324219, 109.390472412109, 110.003799438477, 132.709320068359, 109.863616943359, 92.3063659667969, 90.3632507324219, 93.5907897949219, 90.9490432739258, 98.5338973999023, 98.7324066162109, 98.5985946655273, 102.672882080078, 100.920608520508, 102.191482543945, 101.433647155762, 96.6398696899414, 95.0980911254883, 113.756271362305, 111.93212890625, 111.960144042969, 132.709320068359 )), .Names = c("PointNo", "X", "Y"), row.names = c("34", "48", "51", "75", "78", "95", "98", "99", "108", "109", "115", "119", "135", "143", "160", "169", "1", "42", "59", "62", "80", "85", "96", "100", "102", "112", "117", "121", "134", "148", "154", "165", "172", "180", "1.1"), class = "data.frame")
   expect_equal(plottedVertices, plottedVertices.expected)
 })
@@ -92,4 +121,40 @@ test_that("we can plot neurons in 3D", {
 test_that("we can plot dotprops in 3D", {
   plottedSegments <- plot3d(kcs20[[1]])$segments
   expect_more_than(plottedSegments, 0)
+})
+
+context("neuron seglengths/resampling")
+
+test_that("we can calculate seglengths of neuron", {
+  expect_equal(seglengths(testn), c(2, 2, 1))
+  expect_equal(seglengths(testn, all=TRUE), c(2, 2, 1))
+  expect_equal(seglengths(testn, all=TRUE, flatten=FALSE), list(c(2, 2, 1)))
+  expect_equal(seglength(matrix(1:3,ncol=3)), 0)
+  
+  # lengths of each sedge
+  expect_equal(seglengths(testn, sumsegment = FALSE, all=TRUE, flatten = FALSE),
+               list(list(c(1, 1), c(1, 1), 1)))  
+  
+  # single segment neuron
+  n=as.neuron(data.frame(PointNo=1:5,Label=2,
+                   X=c(1:5),Y=c(rep(1,5)),Z=0,W=NA,
+                   Parent=c(-1,1:4)))
+  expect_equal(seglengths(n), 4)
+  expect_equal(seglengths(n, sumsegment = FALSE), list(c(1,1,1,1)))
+})
+
+test_that("we can resample neurons", {
+  expect_is(resampled<-resample(testn, 1.2), 'neuron')
+  expect_equal(seglengths(resampled), seglengths(testn))
+
+  expect_is(resampled.5<-resample(testn, 0.5), 'neuron')
+  expect_equal(seglengths(resampled.5), seglengths(testn))
+
+  expect_is(resampled1<-resample(testn, 1), 'neuron')
+  expect_equal(seglengths(resampled1), seglengths(testn))
+  
+  set.seed(42)
+  g=ngraph(c(0,1,1,2, 3,4,4,5,5,6, 7,8,8,9,9,10,10,11),vertexlabels=0:11)
+  n=as.neuron(g,origin=3, vertexData = matrix(rnorm(12*4),ncol=4, dimnames = list(NULL, c("X","Y","Z","W"))))
+  expect_warning(resample(n,1), "resample will drop")
 })

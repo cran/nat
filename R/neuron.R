@@ -85,11 +85,11 @@ is.neuron<-function(x,Strict=FALSE) {
 #' @rdname neuron
 as.neuron<-function(x, ...) UseMethod('as.neuron')
 
-#' @S3method as.neuron neuron
+#' @export
 as.neuron.neuron<-function(x, ...) x
 
 #' @rdname neuron
-#' @S3method as.neuron data.frame
+#' @export
 #' @details Columns will be ordered c('PointNo','Label','X','Y','Z','W','Parent')
 #' @description \code{as.neuron.data.frame} expects a block of SWC format data
 as.neuron.data.frame<-function(x, ...) {
@@ -233,7 +233,7 @@ as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
 #' @description \code{as.neuron.default} will add class "neuron" to a neuron-like
 #'   object.
 #' @rdname neuron
-#' @S3method as.neuron default
+#' @export
 as.neuron.default<-function(x, ...){
   if(is.null(x)) return (NULL)
   if(is.neuron(x,Strict=FALSE)) class(x)=c("neuron",class(x))
@@ -371,4 +371,171 @@ all.equal.neuron<-function(target,current,tolerance=1e-6,check.attributes=FALSE,
   fieldsToCheck=setdiff(fieldsToCheck,fieldsToExclude)
   all.equal(target[fieldsToCheck],current[fieldsToCheck],
             tolerance=tolerance, check.attributes=check.attributes, ...)
+}
+
+#' Calculate length of all segments in neuron
+#' 
+#' @param x A neuron
+#' @param all Whether to calculate lengths for all segments when there are 
+#'   multiple subtrees (default: \code{FALSE})
+#' @param flatten Whether to flatten the lists of lists into a single list when 
+#'   \code{all=TRUE}
+#' @param sumsegment Whether to return the length of each segment (when 
+#'   {sumsegment=TRUE}, the default) or a list of vectors of lengths of each
+#'   individual edge in the segment.
+#' @details A segment is an ubranched portion of neurite consisting of at least 
+#'   one vertex joined by edges.Only segments in x$SegList will be calculated 
+#'   unless \code{all=TRUE}. Segments containing only one point will have 0 
+#'   length.
+#' @return A \code{vector} of lengths for each segment or when 
+#'   \code{sumsegment=FALSE} a \code{list} of vectors
+#' @export
+#' @seealso \code{\link{as.seglist.neuron}}
+#' @examples
+#' summary(seglengths(Cell07PNs[[1]]))
+#' hist(unlist(seglengths(Cell07PNs[[1]], sumsegment = FALSE)),
+#'   br=20, main='histogram of edge lengths', xlab='edge lengths /microns')
+seglengths=function(x, all=FALSE, flatten=TRUE, sumsegment=TRUE){
+  # convert to numeric matrix without row names
+  sts<-as.seglist(x, all=all, flatten=flatten)
+  d=data.matrix(x$d[, c("X", "Y", "Z")])
+  if(all && !flatten) {
+    lapply(sts, function(st) sapply(st, 
+                                    function(s) seglength(d[s, ], sum=sumsegment),
+                                    simplify=sumsegment, USE.NAMES = FALSE ))
+  } else sapply(sts, function(s) seglength(d[s, ], sum=sumsegment),
+                simplify=sumsegment, USE.NAMES = FALSE)
+}
+
+# Calculate length of single segment in neuron
+seglength=function(ThisSeg, sum=TRUE){
+  #ThisSeg is an array of x,y and z data points
+  #In order to calculate the length
+  #Need to find dx,dy,dz
+  #Then find sqrt(dx^2+...)
+  #Then sum over the path
+  if(nrow(ThisSeg)==1) return(0)
+  ds=diff(ThisSeg)
+  edgelengths=sqrt(rowSums(ds*ds))
+  if(sum) sum(edgelengths) else unname(edgelengths)
+}
+
+#' Resample an object with a new spacing
+#' @param x An object to resample
+#' @param ... Additional arguments passed to methods
+#' @export
+resample<-function(x, ...) UseMethod("resample")
+
+#' resample a neuron with a new spacing
+#' 
+#' @param stepsize The new spacing along the tracing
+#' @details \code{resample.neuron} calls seglengths to calculate the length of 
+#'   each segment of the neuron before resampling. FIXME It presently has two 
+#'   deficiencies. \itemize{
+#'   
+#'   \item It does not interpolate neuron width
+#'   
+#'   \item It only handles the main subtree of a neuron, even if it has more 
+#'   than one.
+#'   
+#'   }
+#' @export
+#' @rdname resample
+#' @seealso \code{\link{seglengths}}
+resample.neuron<-function(x, stepsize, ...) {
+  if(!is.null(x$SubTrees) && length(x$SubTrees)>1)
+    warning("resample will drop all but the main segment of this neuron")
+  
+  d=matrix(unlist(x$d[,c("X","Y","Z")]),ncol=3)
+  
+  # Always calculate seglengths 
+  # otherwise this would lead to strange failures when they are not correct
+  x$SegLengths=seglengths(x)
+  
+  oldID=NULL; newID=NULL
+  newseglist=x$SegList
+  
+  totalPoints=sum(sapply(x$SegLengths,function(x) 2+floor((x-1e-9)/stepsize)))
+  pointsSoFar=0
+  pointArray=matrix(0,ncol=3,nrow=totalPoints)
+  for(i in seq(len=length(x$SegList))){
+    
+    # length in microns of this segment
+    l=x$SegLengths[i]
+    
+    if(l>stepsize){
+      # new internal points, measured in length along segment
+      internalPoints=seq(stepsize,l,by=stepsize)
+      nInternalPoints=length(internalPoints)
+      # if the last generated one is actually in exactly the same place 
+      # as the endpoint then discard it
+      if(internalPoints[nInternalPoints]==l) {
+        internalPoints=internalPoints[-length(internalPoints)]
+        nInternalPoints=length(internalPoints)
+      }
+      
+      # find lengths between each original point on the segment
+      diffs=diff(d[x$SegList[[i]],])
+      indSegLens=sqrt(rowSums(diffs*diffs))
+      cs=c(0,cumsum(indSegLens))
+      
+      idxs=rep(0,length(internalPoints))
+      for(j in seq(len=length(cs))){
+        idxs[idxs==0 & internalPoints<cs[j]]=j-1
+      }
+      
+      newPoints=matrix(0,ncol=3,nrow=nInternalPoints+2)
+      newPoints[1,]= d[x$SegList[[i]][1],]
+      
+      froms=d[x$SegList[[i]][idxs],]
+      deltas=diffs[idxs,]
+      fracs=(internalPoints-cs[idxs])/indSegLens[idxs]
+      newPoints[-c(1,nrow(newPoints)),]=froms+(deltas*fracs)
+      nNewPoints=nrow(newPoints)
+      newPoints[nNewPoints,]=d[x$SegList[[i]][length(x$SegList[[i]])],]
+    } else {
+      nNewPoints=2
+      newPoints=d[x$SegList[[i]][c(1,length(x$SegList[[i]]))],]
+    }
+    
+    newseg=NULL
+    # have we seen the headpoint of this seg before?
+    if(any(x$SegList[[i]][1]==oldID)){
+      # yes 
+      nNewPoints=nNewPoints-1
+      newPoints=newPoints[-1,] # prevent this head from being readded to point array
+      newseg=c(newID[x$SegList[[i]][1]==oldID],
+               seq(from=pointsSoFar+1,by=1,len=nNewPoints))
+    } else {
+      # no, make a note of it and add it to the array
+      oldID=c(oldID,x$SegList[[i]][1])
+      newID[length(oldID)]=pointsSoFar+1
+      newseg=seq(from=pointsSoFar+1,by=1,len=nNewPoints)
+    }
+    
+    # add the tail to the table we are keeping track of
+    oldID=c(oldID,x$SegList[[i]][length(x$SegList[[i]])])
+    newID=c(newID,pointsSoFar+nNewPoints)
+    
+    newseglist[[i]]=newseg
+    pointArray[(pointsSoFar+1):(pointsSoFar+nNewPoints),]=newPoints
+    pointsSoFar=pointsSoFar+nNewPoints
+  }
+  pointArray=pointArray[1:pointsSoFar,]
+  colnames(pointArray)=c("X","Y","Z")
+  
+  #return(oldID,newID,pointArray,newseglist)
+  # OK now return a new neuron
+  x$NumPoints=pointsSoFar
+  x$StartPoint=newID[oldID==x$StartPoint]
+  x$BranchPoints=newID[match(x$BranchPoints,oldID)]
+  x$EndPoints=newID[match(x$EndPoints,oldID)]
+  if(any(is.na(c(x$EndPoints,x$BranchPoints)))){
+    stop("Problem matching up old & new end/branchpoints")
+  }
+  
+  x$SegList=newseglist
+  x$d=data.frame(PointNo=1:pointsSoFar,X=pointArray[,1],Y=pointArray[,2],Z=pointArray[,3])
+  
+  return(x)
 }

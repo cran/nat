@@ -225,15 +225,11 @@ write.neuron.hxskel<-function(x, file, WriteAllSubTrees=TRUE,
 write.neuron.hxlineset<-function(x, file=NULL, WriteAllSubTrees=TRUE,
                                  ScaleSubTreeNumsTo1=TRUE, WriteRadius=TRUE){
   
-  # if asked & nTrees is present and >1
-  if(WriteAllSubTrees && !is.null(x$nTrees) && x$nTrees>1){	
-    WriteAllSubTrees=TRUE 
-    # nb recurs =F, so list of lists -> list (rather than vector)
-    SegList=unlist(x$SubTrees, recursive=F)
-  } else {
-    WriteAllSubTrees=FALSE
-    SegList=x$SegList
-  }
+  # Make a seglist containing main or all segments
+  SegList=as.seglist(x, all=WriteAllSubTrees, flatten=TRUE)
+  # only use WriteAllSubTrees when there actually are multiple subtrees
+  WriteAllSubTrees=WriteAllSubTrees && isTRUE(x$nTrees>1)
+
   chosenVertices=sort(unique(unlist(SegList)))
   nVertices=length(chosenVertices)
   # the number of points required to define the line segments
@@ -253,9 +249,15 @@ write.neuron.hxlineset<-function(x, file=NULL, WriteAllSubTrees=TRUE,
   cat("}\n\n",file=fc)
   sectionNumbers=c(Coordinates=1,LineIdx=2)
   cat("Vertices { float[3] Coordinates } = @1\n",file=fc)
+
   if(WriteRadius){
-    cat("Vertices { float Data } = @2\n",file=fc)
-    sectionNumbers=c(Coordinates=1,Data=2,LineIdx=3)
+    if(any(is.na(x$d$W))) {
+      warning("Width has NAs. Omitting invalid width data from file:", file)
+      WriteRadius=FALSE
+    } else {
+      cat("Vertices { float Data } = @2\n",file=fc)
+      sectionNumbers=c(Coordinates=1,Data=2,LineIdx=3)
+    }
   }
   cat("Lines { int LineIdx } = @",sectionNumbers['LineIdx'],"\n",sep="",file=fc)
   if(WriteAllSubTrees) {
@@ -278,10 +280,10 @@ write.neuron.hxlineset<-function(x, file=NULL, WriteAllSubTrees=TRUE,
   }
   
   # Write the segment information
-  cat("\n@",sectionNumbers['LineIdx']," #",nLinePoints,"line segments\n",sep="",file=fc)
+  cat("\n@",sectionNumbers['LineIdx']," #",nLinePoints," line segments\n",sep="",file=fc)
   # nb have to -1 from each point because amira is 0 indexed
   # AND add -1 to each segment as a terminator
-  tmp=lapply(SegList,function(x) cat(x-1,"-1 \n",file=fc) )
+  lapply(SegList,function(x) cat(x-1,"-1 \n",file=fc))
   if(WriteAllSubTrees) {
     cat("\n@",sectionNumbers['Data2']," # subtrees\n",sep="",file=fc)
     if(ScaleSubTreeNumsTo1) x$d$SubTree=x$d$SubTree/max(x$d$SubTree)

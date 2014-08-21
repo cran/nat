@@ -1,8 +1,8 @@
 Package: nat
 Type: Package
 Title: nat: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.4.10
-Date: 2013-04-29
+Version: 1.5.12
+Date: 2013-08-16
 Author: Greg Jefferis and James Manton
 Maintainer: Greg Jefferis <jefferis@gmail.com>
 URL: https://github.com/jefferis/nat http://jefferislab.org
@@ -23,11 +23,12 @@ Description: This package is a reboot of the AnalysisSuite
     allows morphological comparison between neurons including searches and
     clustering.
 Depends: R (>= 2.15.1), rgl
-Imports: RANN, igraph, methods, filehash, digest, nat.utils
-Suggests: testthat
+Imports: RANN, igraph, methods, filehash, digest, nat.utils (>= 0.4.2),
+        plyr
+Suggests: Rvcg, testthat, httr
 License: GPL-3
 LazyData: yes
-Packaged: 2014-04-30 02:19:49 UTC; jefferis
+Packaged: 2014-08-21 16:53:37 UTC; jefferis
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2014-04-30 07:49:42
+Date/Publication: 2014-08-21 19:06:47

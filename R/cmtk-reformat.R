@@ -1,18 +1,31 @@
 #' Defines a target volume for a CMTK reformatx operation
 #' 
-#' @details if the character vector specifies an amiramesh file, it will be
-#'   converted to a bare \code{im3d} object and then to an appropriate
+#' @details if the character vector specifies an amiramesh file, it will be 
+#'   converted to a bare \code{im3d} object and then to an appropriate 
 #'   '--target-grid' specification.
-#' @param target A character vector specifying a file, an \code{im3d} object or a
-#'   6-or 9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].
+#' @param target A character vector specifying a file, an \code{im3d} object or
+#'   a 6-or 9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].
+#' @param ... additional arguments passed to methods
 #' @return a character vector specifying the full cmtk reformatx '--target' or 
 #'   '--target-grid' argument
 #' @export
-#' @rdname cmtk.reformatx
-cmtk.targetvolume<-function(target){
+cmtk.targetvolume<-function(target, ...) UseMethod("cmtk.targetvolume")
+
+#' @export
+#' @rdname cmtk.targetvolume
+cmtk.targetvolume.im3d<-function(target, ...) {
+  cmtk.targetvolume(c(dim(target), voxdims(target), origin(target)))
+}
+
+#' @export
+#' @rdname cmtk.targetvolume
+cmtk.targetvolume.default<-function(target, ...) {
+  if(is.list(target))
+    target=cmtk.targetvolume(as.im3d(target))
+  
   if(is.character(target) && !is.nrrd(target,TrustSuffix=TRUE) &&
        isTRUE(try(is.amiramesh(target), silent=TRUE))){
-    target=read.im3d(target,ReadData=FALSE)
+    return(cmtk.targetvolume(read.im3d(target,ReadData=FALSE)))
   }
   if(is.character(target)){
     target=shQuote(target)
@@ -26,31 +39,20 @@ cmtk.targetvolume<-function(target){
       target=paste("--target-grid",
                    paste(paste(target[1:3],collapse=","),paste(target[4:6],collapse=","),sep=":"))
     } else stop("Incorrect target specification: ",target)
-  } else if(inherits(target,'im3d')){
-    # can also give a density object
-    # --target-grid
-    #           Define target grid for reformating as Nx,Ny,Nz:dX,dY,dZ[:Ox,Oy,Oz]
-    #           (dims:pixel:origin)
-    # TODO: Double check definition of origin
-    target=paste("--target-grid",paste(
-      paste(dim(target),collapse=","),
-      paste(voxdims(target),collapse=","),
-      paste(origin(target),collapse=","),sep=":")
-    )
   } else {
     stop("Unrecognised target specification")
   }
   target
 }
 
-#' Refomat an image with a CMTK registration using the reformatx tool
+#' Reformat an image with a CMTK registration using the reformatx tool
 #' 
 #' @param floating The floating image to be reformatted
 #' @param registrations One or more CMTK format registrations on disk
 #' @param output The output image (defaults to target-floating.nrrd)
 #' @param dryrun Just print command
 #' @param Verbose Whether to show cmtk status messages and be verbose about file
-#'   update checks. Sets \code{reformatx} \code{--verbose} option.
+#'   update checks. Sets command line \code{--verbose} option.
 #' @param MakeLock Whether to use a lock file to allow simple parallelisation 
 #'   (see \code{makelock})
 #' @param OverWrite Whether to OverWrite an existing output file. One of 
@@ -61,13 +63,18 @@ cmtk.targetvolume<-function(target){
 #'   be checked when determining if new output is required.
 #' @param ... additional arguments passed to CMTK \code{reformatx} after 
 #'   processing by \code{\link{cmtk.call}}.
+#' @inheritParams cmtk.targetvolume
 #' @importFrom nat.utils makelock removelock RunCmdForNewerInput
 #' @seealso \code{\link{cmtk.bindir}, \link{cmtk.call}, \link{makelock}, 
 #'   \link{RunCmdForNewerInput}}
 #' @export
-cmtk.reformatx<-function(floating, target, registrations, output, 
-                         dryrun=FALSE,
-                         Verbose=TRUE, MakeLock=TRUE,
+#' @examples
+#' \dontrun{
+#' cmtk.reformatx('myimage.nrrd', target='template.nrrd',
+#'   registrations='template_myimage.list')
+#' }
+cmtk.reformatx<-function(floating, target, registrations, output, dryrun=FALSE,
+                         Verbose=TRUE, MakeLock=TRUE, 
                          OverWrite=c("no","update","yes"),
                          filesToIgnoreModTimes=NULL, ...){
   # TODO improve default ouput file name
@@ -119,4 +126,45 @@ cmtk.reformatx<-function(floating, target, registrations, output,
   }
   if(Verbose||dryrun && PrintCommand) cat("cmd:\n",cmd,"\n") 
   return(TRUE)
+}
+
+#' Calculate image statistics for a nrrd or other CMTK compatible file
+#' 
+#' @details When given a label mask returns a dataframe with a row for each 
+#'   level of the label field. If GJ's modified version of CMTK statistics is 
+#'   available this will include an extra column with the number of non-zero 
+#'   voxels in the main image for each level of the mask.
+#' @details Note that the Entropy column (sometimes H, sometimes Entropy) will 
+#'   always be named Entropy in the returned dataframe.
+#' @param f Path to image file (any CMTK compatible format)
+#' @param mask Optional path to a mask file
+#' @param masktype Whether mask should be treated as label field or binary mask 
+#'   (default label)
+#' @param ... Additional arguments for ctmk's statistics tool processed by 
+#'   \code{\link{cmtk.call}}.
+#' @inheritParams cmtk.reformatx
+#' @return return dataframe describing results
+#' @export
+#' @examples
+#' \dontrun{
+#' cmtk.statistics('someneuron.nrrd',mask='neuropilregionmask.nrrd')
+#' }
+cmtk.statistics<-function(f, mask, masktype=c("label", "binary"), ..., Verbose=FALSE){
+  masktype=match.arg(masktype)
+  if(length(f)>1) return(sapply(f,cmtk.statistics,mask=mask,masktype=masktype, ...))
+  args=f
+  if(!missing(mask)){
+    args=c(ifelse(masktype=='label','--Mask','--mask'), mask, args)
+  }
+  cmd=cmtk.call("statistics", PROCESSED.ARGS = if(Verbose) "--verbose" else NULL, 
+                FINAL.ARGS = args, ... = ...)
+  rval=system(cmd, intern = TRUE, ignore.stderr=!Verbose)
+  # there is a bug in versions of CMTK statistics <2.3.1 when used with a mask 
+  # the header says that there are two entropy columns (H1,H2)
+  # but in fact there is only 1. 
+  rval[2]=sub('H1\tH2','Entropy',rval[2])
+  # use Entropy as standard columen method name
+  rval[2]=sub('\tH\t','\tEntropy\t',rval[2])
+  rval[2]=sub('#M','MaskLevel',rval[2])
+  read.table(text=rval,header=TRUE,skip=1,comment.char="")
 }

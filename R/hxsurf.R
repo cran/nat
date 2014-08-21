@@ -26,6 +26,7 @@
 #' @seealso \code{\link{plot3d.hxsurf}, \link{rgb}}
 #' @aliases hxsurf
 #' @family amira
+#' @family hxsurf
 read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
                       FallbackRegionCol="grey",Verbose=FALSE){
   # Check for header confirming file type
@@ -86,14 +87,18 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
       if( is.null(RegionNames) || RegionName%in%RegionNames ){
         # Ensure we do not try to add no triangles, or the exterior region
         if(nTriangles == 0 || RegionName == "Exterior") next
-        start_of_patch=linesSkipped+TriangleDeflines[i]+1
         thispatch=read.table(filename,skip=linesSkipped+TriangleDeflines[i],nrows=nTriangles,
                              quote='',colClasses='integer',blank.lines.skip=FALSE,
                              fill=FALSE,comment.char="",
                              col.names=c("V1","V2","V3"))
+        if(getfield(paste(RegChoice,"Region",sep=""),PatchHeader,1) == "OuterRegion") {
+          thispatch <- thispatch[, c(1,3,2)]
+          if(Verbose) message("Permuting vertices for ", RegionName, "...")
+          colnames(thispatch) <- c("V1","V2","V3")
+        }
         # scan no quicker in these circs, problem is repeated file access
         # specifying text directly also does not help dues to very slow textConnection
-        # thispatch=matrix(scan(text=t[start_of_patch:(start_of_patch+nTriangles-1)],nlines=nTriangles),ncol=3,byrow=T)
+
         # check if we have already loaded a patch in this name
         if(RegionName%in%names(d$Regions)){
           # add to the old patch
@@ -138,6 +143,7 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
 #' @export
 #' @seealso \code{\link{plot3d.hxsurf}},\code{\link{read.hxsurf}}, \code{\link{rgb}}
 #' @family amira
+#' @family hxsurf
 write.hxsurf <- function(surf, filename) {
   fc <- file(filename, open="at")
   cat("# HyperSurface 0.1 ASCII\n\n", file=fc)
@@ -179,21 +185,23 @@ write.hxsurf <- function(surf, filename) {
 #' Plot amira surface objects in 3d using rgl
 #' 
 #' @param x An hxsurf surface object
-#' @param materials Character vector naming materials to plot (defaults to all 
-#'   materials in x)
+#' @param materials Character vector or \code{\link{regex}} naming materials to
+#'   plot (defaults to all materials in x). See \code{\link{subset.hxsurf}}.
 #' @param col Character vector specifying colors for the materials, or a 
-#'   function that will be called with the number of materials to plot. When
-#'   \code{NULL} (default) will use meterial colours defined in Amira (if
+#'   function that will be called with the number of materials to plot. When 
+#'   \code{NULL} (default) will use meterial colours defined in Amira (if 
 #'   available), or \code{rainbow} otherwise.
-#' @param ... Additional arguments passed to 
+#' @param ... Additional arguments passed to
 #' @export
 #' @method plot3d hxsurf
-#' @importFrom rgl plot3d par3d triangles3d
 #' @seealso \code{\link{read.hxsurf}}
-plot3d.hxsurf<-function(x, materials=x$RegionList, col=NULL, ...){
+#' @family hxsurf
+plot3d.hxsurf<-function(x, materials=NULL, col=NULL, ...){
   # skip so that the scene is updated only once per hxsurf object
   skip <- par3d(skipRedraw = TRUE)
   on.exit(par3d(skip))
+  
+  materials=subset(x, subset = materials, rval='names')
   
   if(is.null(col)) {
     if(length(x$RegionColourList)){
@@ -212,4 +220,112 @@ plot3d.hxsurf<-function(x, materials=x$RegionList, col=NULL, ...){
                              x[['Vertices']]$Z[tri],col=col[mat],...)
   }
   invisible(rlist)
+}
+
+#' Convert an object to an rgl mesh3d
+#'
+#' Note that this provides a link to the Rvcg package 
+#' @export
+#' @param x Object to convert to mesh3d
+#' @param ... Additional arguments for methods
+as.mesh3d<-function(x, ...) UseMethod("as.mesh3d")
+
+#' @param Regions Character vector or regions to select from \code{hxsurf} object
+#' @param material rgl materials such as \code{color}
+#' @param drop Whether to drop unused vertices (default TRUE)
+#' @export
+#' @rdname as.mesh3d
+#' @seealso \code{\link[rgl]{tmesh3d}}
+#' @family hxsurf
+as.mesh3d.hxsurf<-function(x, Regions=NULL, material=NULL, drop=TRUE, ...){
+  if(is.null(Regions)) {
+    Regions=x$RegionList
+  }
+  x=subset(x, Regions, drop=drop)
+  if(length(Regions)==1 && is.null(material)){
+    # find colour
+    material=list(color=x$RegionColourList[match(Regions,x$RegionList)])
+  } 
+  verts=t(data.matrix(x$Vertices[,1:3]))
+  inds=t(data.matrix(do.call(rbind, x$Regions)))
+  tmesh3d(vertices=verts, indices=inds, homogeneous = FALSE, material = material, ...)
+}
+
+#' Subset hxsurf object to specified regions
+#' 
+#' @param x A dotprops object
+#' @param subset Character vector specifying regions to keep. Interpreted as 
+#'   \code{\link{regex}} if of length 1 and no fixed match.
+#' @param drop Whether to drop unused vertices after subsetting
+#' @param rval Whether to return a new \code{hxsurf} object or just the names of
+#'   the matching regions
+#' @param ... Additional parameters (currently ignored)
+#' @return subsetted hxsurf object
+#' @method subset hxsurf
+#' @export
+#' @family hxsurf
+subset.hxsurf<-function(x, subset=NULL, drop=FALSE, rval=c("hxsurf","names"), ...){
+  rval=match.arg(rval)
+  if(!is.null(subset)){
+    tokeep=integer(0)
+    if(is.character(subset)){
+      tokeep=match(subset,x$RegionList)
+      if(is.na(tokeep[1]) && length(subset)==1){
+        # try as regex
+        tokeep=grep(subset,x$RegionList)
+      }
+    }
+    if(!length(tokeep) || any(is.na(tokeep)))
+      stop("Invalid subset! See ?subset.hxsurf")
+    if(rval=='names') return(x$RegionList[tokeep])
+    x$Regions=x$Regions[tokeep]
+    x$RegionList=x$RegionList[tokeep]
+    x$RegionColourList=x$RegionColourList[tokeep]
+  } else if(rval=='names') return(x$RegionList)
+  
+  if(drop){
+    # see if we need to drop any vertices
+    vertstokeep=sort(unique(unlist(x$Regions)))
+    # a vector where each position is the old vertex id and the value is the
+    # new one i.e. newid=vert_table[oldid]
+    vert_table=match(seq_len(nrow(x$Vertices)), vertstokeep)
+    # convert all vertex ids from old to new sequence
+    for(r in x$RegionList){
+      for(i in seq_len(ncol(x$Regions[[r]]))){
+        x$Regions[[r]][[i]]=vert_table[x$Regions[[r]][[i]]]
+      }
+    }
+    # drop unused vertices
+    x$Vertices=x$Vertices[vertstokeep, ]
+  }
+  x
+}
+
+#' Find which points of an object are inside a surface
+#' 
+#' @details Note that \code{hxsurf} surface objects will be converted to 
+#'   \code{mesh3d} before being passed to  \code{Rvcg::vcgClost}, so if you are 
+#'   testing repeatedly against the same surface, it may make sense to 
+#'   pre-convert.
+#' @param x an object with 3D points.
+#' @param surf an \code{hxsurf} or \code{mesh3d} object defining the reference 
+#'   surface.
+#' @param ... additional arguments for methods, eventually passed to as.mesh3d.
+#' @export
+pointsinside<-function(x, surf, ...) UseMethod('pointsinside')
+
+#' @export
+#' @param rval what to return.
+#' @return A vector of logical values or distances equal to the number of points
+#'   in x or the \code{mesh3d} object returned by \code{Rvcg::vcgClost}.
+#' @rdname pointsinside
+pointsinside.default<-function(x, surf, ..., rval=c('logical','distance', 'mesh3d')) {
+  if(!require('Rvcg')) stop("Please install suggested library Rvcg to use pointsinside")
+  rval=match.arg(rval)
+  pts=xyzmatrix(x)
+  if(inherits(surf,'hxsurf')) {
+    surf=as.mesh3d(surf, ...)
+  }
+  rmesh=Rvcg::vcgClost(pts, surf, sign = TRUE)
+  switch(rval, logical=rmesh$quality>0, distance=rmesh$quality, mesh3d=rmesh)
 }

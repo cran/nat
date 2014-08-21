@@ -38,14 +38,16 @@ im3d<-function(x=numeric(0), dims=NULL, voxdims=NULL, origin=NULL,
     if(is.null(bounds)) bounds=atts[["bounds"]]
     if(is.null(origin)) origin=atts[["origin"]]
   }
-  
+  if(length(dims)>3) stop("im3d is presently strictly limited to 3D image data")
   # add extra singleton dimension if we have 2d data
   if(length(dims)==2) dims=c(dims,1)
   # think about this - add 0 dimension if required
   if(length(voxdims)==2) voxdims=c(voxdims,0)
   boundSpecs=!c(is.null(BoundingBox), is.null(bounds), is.null(voxdims))
   if(sum(boundSpecs)<1){
-    return(x)
+    # we don't have any bounding box information, but we need to do something to 
+    # indicate image dimensions
+    BoundingBox=c(0,dims[1]-1,0,dims[2]-1,0,dims[3]-1)
   } else if(sum(boundSpecs)>1)
     stop("only 1 of boundingBox, bounds or voxdims can be supplied")
   if(!is.null(BoundingBox)){
@@ -93,12 +95,16 @@ as.im3d.im3d <- function(x, ...) x
 #' @details Currently only nrrd and amira formats are implemented. Furthermore 
 #'   implementing a registry to allow extension to arbitrary formats remains a 
 #'   TODO item.
+#'   
+#'   The core attributes of an im3d object are \code{BoundingBox, origin, x, y ,
+#'   z} where \code{x, y, z} are the locations of samples in the x, y and z
+#'   image axes (which are assumed to be orthogonsl).
 #' @param file Character vector describing a single file
 #' @param ReadData Whether to read the data itself or return metadata only. 
 #'   Default: TRUE
 #' @param SimplifyAttributes When \code{TRUE} leave only core im3d attributes.
-#' @param ReadByteAsRaw Whether to read byte values as R \code{\link{raw}}
-#'   arrays. These occupy 1/4 memory but arithmetic is less convenient.
+#' @param ReadByteAsRaw Whether to read byte values as R \code{\link{raw}} 
+#'   arrays. These occupy 1/4 memory but arithmetic is less convenient. 
 #'   (default: FALSE)
 #' @param ... Arguments passed to methods
 #' @return For \code{read.im3d} an objecting inheriting from base \code{array} 
@@ -108,17 +114,26 @@ as.im3d.im3d <- function(x, ...) x
 #' @aliases read.im3d
 #' @family im3d
 #' @seealso \code{\link{read.nrrd}, \link{read.amiramesh}}
+#' @examples
+#' \dontrun{
+#' # read attributes of vaa3d raw file
+#' read.im3d("L1DS1_crop_straight.raw", ReadData = F, chan=2)
+#' }
 read.im3d<-function(file, ReadData=TRUE, SimplifyAttributes=FALSE,
                     ReadByteAsRaw=FALSE, ...){
+  if(!file.exists(file)) stop("file: ", file, " doesn't exist!")
   ext=sub(".*(\\.[^.])","\\1",file)
   x=if(ext%in%c('.nrrd','.nhdr')){
     read.nrrd(file, ReadData=ReadData, ReadByteAsRaw=ReadByteAsRaw, ...)
-  } else if(ext%in%c(".am",'.amiramesh')){
+  } else if(ext%in%c(".am",'.amiramesh') || is.amiramesh(file)){
     if(ReadData) read.im3d.amiramesh(file, ReadByteAsRaw=ReadByteAsRaw, ...)
     else read.im3d.amiramesh(file, sections=NA, ReadByteAsRaw=ReadByteAsRaw, ...)
+  } else if(is.vaa3draw(file)){
+    read.vaa3draw.im3d(file, ReadData=ReadData, ReadByteAsRaw=ReadByteAsRaw, ...)
   } else {
     stop("Unable to read data saved in format: ",ext)
   }
+  attr(x,'file')=file
   if(SimplifyAttributes){
     coreattrs=c("BoundingBox",'origin','x','y','z')
     mostattributes(x)<-attributes(x)[coreattrs]
@@ -176,12 +191,12 @@ read.im3d.amiramesh<-function(file, ...){
 #' @family im3d
 voxdims<-function(x, ...) UseMethod("voxdims")
 
-#' @S3method voxdims im3d
+#' @export
 voxdims.im3d<-function(x, ...){
   voxdims(boundingbox(x), dim(x), ...)
 }
 
-#' @S3method voxdims default
+#' @export
 #' @method voxdims default
 #' @param dims The number of voxels in each dimension when x is a BoundingBox 
 #'   matrix.
@@ -208,28 +223,34 @@ voxdims.default<-function(x, dims, ...){
 #'   image that are discussed e.g. 
 #'   \url{http://teem.sourceforge.net/nrrd/format.html}. The definition that 
 #'   makes most sense depends largely on whether you think of a pixel as a 
-#'   little cube with some defined area (and therefor a voxel as a cube with 
+#'   little square with some defined area (and therefore a voxel as a cube with 
 #'   some defined volume) \emph{or} you take the view that you can only define 
-#'   with the certainty the grid points at which image data was acquired. The 
-#'   first view implies a physical extent which we call the  \code{bounds=dim(x)
-#'   * c(dx,dy,dz)}; the second is defined as \code{BoundingBox=dim(x)-1 * 
+#'   with certainty the grid points at which image data was acquired. The first 
+#'   view implies a physical extent which we call the  \code{bounds=dim(x) * 
+#'   c(dx,dy,dz)}; the second is defined as \code{BoundingBox=dim(x)-1 * 
 #'   c(dx,dy,dz)} and assumes that the extent of the image is defined by a 
 #'   cuboid including the sample points at the extreme corner of the grid. Amira
-#'   takes this second view and this is the one we favour given our background
-#'   in microscopy. If you wish to convert a \code{bounds} type definition into
+#'   takes this second view and this is the one we favour given our background 
+#'   in microscopy. If you wish to convert a \code{bounds} type definition into 
 #'   an im3d BoundingBox, you should pass the argument \code{input='bounds'}.
-#' @param x A vector or matrix specifying a bounding box, an \code{im3d} object 
-#'   or, for \code{boundingbox.character}, a character vector specifying a file.
+#' @param x A vector or matrix specifying a bounding box, an \code{im3d} object,
+#'   any object with base class list for which \code{\link{xyzmatrix}} can 
+#'   extract 3d points (e.g. neurons, surfaces etc), or, for 
+#'   \code{boundingbox.character}, a character vector specifying a file.
 #' @inheritParams voxdims
-#' @return a \code{matrix} with 2 rows and 3 columns \emph{NULL} when missing.
+#' @return a \code{matrix} with 2 rows and 3 columns with 
+#'   \code{class='boundingbox'} or \emph{NULL} when missing.
 #' @export
+#' @seealso \code{\link{plot3d.boundingbox}}
 #' @family im3d
 #' @examples
 #' boundingbox(c(x0=0,x1=10,y0=0,y1=20,z0=0,z1=30))
+#' # bounding box for a neuron
+#' boundingbox(Cell07PNs[[1]])
 boundingbox<-function(x, ...) UseMethod("boundingbox")
 
 #' @method boundingbox im3d
-#' @S3method boundingbox im3d
+#' @export
 #' @export
 #' @rdname boundingbox
 boundingbox.im3d<-function(x, dims=dim(x), ...) {
@@ -262,7 +283,8 @@ origin<-function(x, ...) {
   boundingbox(x, ...)[c(1, 3, 5)]
 }
 
-#' @S3method boundingbox character
+#' @export
+#' @rdname boundingbox
 boundingbox.character<-function(x, ...) {
   if(!file.exists(x))
     stop("Unable to find a file at path: ",x)
@@ -270,8 +292,20 @@ boundingbox.character<-function(x, ...) {
   boundingbox(read.im3d(x, ReadData=FALSE))
 }
 
+#' @export
+#' @description \code{boundingbox.list} is designed to be used on objects that
+#'   contain 3d point information and for which \code{xyzmatrix} is defined.
+#' @rdname boundingbox
+boundingbox.list<-function(x, ...) {
+  # we don't want to do this for data.frame objects
+  if(is.data.frame(x)) NextMethod()
+  xyz=xyzmatrix(x)
+  bb=apply(xyz,2,range)
+  boundingbox(bb)
+}
+
 #' @method boundingbox default
-#' @S3method boundingbox default
+#' @export
 #' @param input Whether \code{x} defines the boundingbox or bounds of the image 
 #'   (see details).
 #' @rdname boundingbox
@@ -281,9 +315,11 @@ boundingbox.default<-function(x, dims, input=c("boundingbox",'bounds'), ...){
   if(is.vector(x)) {
     if(length(x)!=6) stop("Must supply a vector of length 6")
     x=matrix(x,nrow=2)
-  } else if(is.matrix(x)){
+  } else if(is.matrix(x) || is.data.frame(x)){
     if(!isTRUE(all.equal(dim(x),c(2L,3L),check.attributes=FALSE)))
       stop("Must supply a 2 x 3 matrix of physical extents")
+    if(is.data.frame(x)) x=data.matrix(x)
+    dimnames(x)=NULL
   }
   if(input=='bounds'){
     if(missing(dims)) stop("must supply dimensions when input is of type bounds!")
@@ -294,7 +330,7 @@ boundingbox.default<-function(x, dims, input=c("boundingbox",'bounds'), ...){
     x[2,]=x[2,]-halfVoxelDims
   }
   # zap small gets rid of FP rounding errors
-  zapsmall(x)
+  structure(zapsmall(x), class = "boundingbox")
 }
 
 #' @description Set the bounding box of an im3d object
@@ -305,13 +341,13 @@ boundingbox.default<-function(x, dims, input=c("boundingbox",'bounds'), ...){
 #' @export
 `boundingbox<-`<-function(x, value) UseMethod("boundingbox<-")
 
-#' @S3method boundingbox<- default
+#' @export
 `boundingbox<-.default`<-function(x, value){
   attr(x,'BoundingBox')<-boundingbox(value)
   x
 }
 
-#' @S3method dim im3d
+#' @export
 dim.im3d<-function(x){
   dimx=NextMethod(generic='dim')
   if(is.null(dimx)){
@@ -381,7 +417,7 @@ dim.im3d<-function(x){
 #' image(imslice(LHMask,10), asp=TRUE, useRaster=TRUE)
 #' }
 image.im3d<-function(x, xlim=NULL, ylim=NULL, zlim=NULL,
-                     plotdims=NULL,flipdims='y', filled.contour=FALSE, asp=NA,
+                     plotdims=NULL,flipdims='y', filled.contour=FALSE, asp=1,
                      axes=FALSE, xlab=NULL, ylab=NULL,
                      nlevels=20, levels = pretty(zlim, nlevels+1),
                      color.palette=colorRampPalette(c('navy','cyan','yellow','red')),
@@ -599,10 +635,10 @@ flip.array=function(x, flipdim='X', ...){
   return (rval)
 }
 
-#' @S3method flip vector
+#' @export
 flip.vector=function(x, ...) rev(x)
 
-#' @S3method flip matrix
+#' @export
 flip.matrix=function(x, ...) flip.array(x, ...)
 
 #' Slice out a 3d subarray (or 2d matrix) from a 3d image array
@@ -676,8 +712,6 @@ all.equal.im3d<-function(target, current, tolerance=1e-6,
                          CheckSharedAttrsOnly=FALSE, ...){
   atarget=attributes(target)
   acurrent=attributes(current)
-  if(length(attrsToCheck)==1 && is.na(attrsToCheck))
-    fieldsToCheck=names(atarget)
   
   if(!inherits(current,'im3d'))
     return ("target and current must both be im3d objects")
@@ -975,7 +1009,7 @@ materials<-function(x, ...) UseMethod("materials")
 #' @rdname materials
 #' @method materials default
 materials.default<-function(x, ...) {
-  m=attr(x,'materials')
+  attr(x,'materials')
 }
 
 #' @description \code{materials.character} will read the materials from an im3d
@@ -988,11 +1022,12 @@ materials.character<-function(x, ...) {
   materials(i)
 }
 
-#' @description \code{materials.character} will read the materials from an im3d 
-#'   compatible image file.
+#' @description \code{materials.hxsurf} will extract the materials from an
+#'   hxsurf object
 #' @export
 #' @rdname materials
 #' @method materials hxsurf
+#' @family hxsurf
 materials.hxsurf<-function(x, ...) {
   m=data.frame(name=names(x$Regions),id=seq_along(x$Regions),
                 col=x$RegionColourList, stringsAsFactors = FALSE)

@@ -8,14 +8,16 @@
 #'   this will probalbly not be necessary if the \code{xyzmatrix} and 
 #'   \code{`xyzmatrix<-`} generics are suitably overloaded \emph{and} the S3 
 #'   object inherits from \code{list}.
-#' @details Where reg is a function, it should have a signature like
-#'   \code{myfun(x, ...)} where the ... \strong{must} be provided in order to
-#'   swallow any arguments passed from higher level functions that are not
-#'   relevant to this particular transformation function.
+#'   
+#'   Where reg is a function, it should have a signature like \code{myfun(x,
+#'   ...)} where the ... \strong{must} be provided in order to swallow any
+#'   arguments passed from higher level functions that are not relevant to this
+#'   particular transformation function.
 #' @param x an object to transform
 #' @param reg an object describing a transformation in any of the forms 
 #'   understood by \code{\link{xformpoints}} (see details).
-#' @param ... additional arguments passed to methods and eventually to \code{\link{xformpoints}}
+#' @param ... additional arguments passed to methods and eventually to
+#'   \code{\link{xformpoints}}
 #' @export
 #' @rdname xform
 #' @seealso \code{\link{xformpoints}}
@@ -24,7 +26,7 @@ xform<-function(x, reg, ...) UseMethod('xform')
 #' @details TODO get this to work for matrices with more than 3 columns by
 #'   working on xyzmatrix definition.
 #' @method xform default
-#' @S3method xform default
+#' @export
 #' @param na.action How to handle NAs. NB drop may not work for some classes.
 #' @rdname xform
 xform.default<-function(x, reg, na.action=c('warn','none','drop','error'), ...){
@@ -44,7 +46,7 @@ xform.default<-function(x, reg, na.action=c('warn','none','drop','error'), ...){
 }
 
 #' @method xform list
-#' @S3method xform list
+#' @export
 #' @rdname xform
 #' @param FallBackToAffine Whether to use an affine transform when a cmtk
 #'   warping transformation fails.
@@ -57,7 +59,7 @@ xform.list<-function(x, reg, FallBackToAffine=TRUE, na.action='error', ...){
 }
 
 #' @method xform dotprops
-#' @S3method xform dotprops
+#' @export
 #' @rdname xform
 #' @details the dotprops tangent vectors will be recalculated after the points
 #'   have been transformed (even though they could in theory be transformed more
@@ -80,15 +82,18 @@ xform.dotprops<-function(x, reg, FallBackToAffine=TRUE, ...){
 }
 
 #' @method xform neuronlist
-#' @S3method xform neuronlist
+#' @param subset For \code{xform.neuronlist} indices (character/logical/integer)
+#'   that specify a subset of the members of \code{x} to be transformed.
+#' @inheritParams nlapply
+#' @export
 #' @rdname xform
-xform.neuronlist<-function(x, reg, ...){
+xform.neuronlist<-function(x, reg, subset=NULL, ..., OmitFailures=NA){
   if(length(reg)>1) stop("xform.neuronlist is currently only able to apply",
                          " a single registration to multiple neurons")
   # TODO if x is long there would be some performance benefits in chunking
   # all points from multiple neurons together. I strongly suspect that doing 10
   # at once would approach a 10x speedup.
-  nlapply(x, xform, reg, ...)
+  nlapply(x, FUN=xform, reg=reg, ..., subset=subset, OmitFailures=OmitFailures)
 }
 
 #' Get and assign coordinates for classes containing 3d vertex data
@@ -107,16 +112,19 @@ xyzmatrix.neuronlist<-function(x, ...) {
   do.call(rbind, coords)
 }
 
-#' @S3method xyzmatrix neuron
+#' @export
 xyzmatrix.neuron<-function(x, ...) x$d[,c("X","Y","Z")]
 
-#' @S3method xyzmatrix dotprops
+#' @export
 xyzmatrix.dotprops<-function(x, ...) x$points
 
 #' @method xyzmatrix default
 #' @param y,z separate y and z coordinates
+#' @details Note that \code{xyzmatrix} can extract or set 3d coordinates in a 
+#'   \code{matrix} or \code{data.frame} that \bold{either} has exactly 3 columns
+#'   \bold{or} has 3 columns named X,Y,Z or x,y,z.
 #' @rdname xyzmatrix
-#' @S3method xyzmatrix default
+#' @export
 xyzmatrix.default<-function(x, y=NULL, z=NULL, ...) {
   xyzn=c("X","Y","Z")
   if(is.neuron(x,Strict=FALSE)) {
@@ -125,7 +133,8 @@ xyzmatrix.default<-function(x, y=NULL, z=NULL, ...) {
     x=cbind(x,y,z)
   } else if(is.data.frame(x) || is.matrix(x)){
     if(ncol(x)>3){
-      if(all(xyzn%in%colnames(x))) x=x[,xyzn]
+      matched_cols=match(xyzn, toupper(colnames(x)))
+      if(!any(is.na(matched_cols))) x=x[,matched_cols]
       else stop("Ambiguous column names. Unable to retrieve XYZ data")
     } else if(ncol(x)<3) stop("Must have 3 columns of XYZ data")
   }
@@ -134,7 +143,7 @@ xyzmatrix.default<-function(x, y=NULL, z=NULL, ...) {
   mx
 }
 
-#' @S3method xyzmatrix hxsurf
+#' @export
 xyzmatrix.hxsurf<-function(x, ...) {
   # quick function that gives a generic way to extract coords from 
   # classes that we care about and returns a matrix
@@ -145,13 +154,14 @@ xyzmatrix.hxsurf<-function(x, ...) {
 }
 
 #' @rdname xyzmatrix
-#' @S3method xyzmatrix igraph
+#' @export
 xyzmatrix.igraph<-function(x, ...){
   igraph::get.graph.attribute(x, 'xyz')
 }
 
-#' @description Assign xyz elements of neuron or dotprops object. Can also
-#'   handle matrix like objects with columns named X,Y,Z
+#' @description \code{xyzmatrix<-} assigns xyz elements of neuron or dotprops
+#'   object and can also handle matrix like objects with columns named X, Y, Z
+#'   or x, y, z.
 #' @usage xyzmatrix(x) <- value
 #' @param value Nx3 matrix specifying new xyz coords
 #' @return Original object with modified coords
@@ -166,36 +176,43 @@ xyzmatrix.igraph<-function(x, ...){
 #' ))
 `xyzmatrix<-`<-function(x, value) UseMethod("xyzmatrix<-")
 
-#' @S3method xyzmatrix<- default
+#' @export
 `xyzmatrix<-.default`<-function(x, value){
-  if(is.neuron(x)) x$d[,c("X","Y","Z")]=value
-  else if(is.dotprops(x)) x$points[,c("X","Y","Z")]=value
-  else if(all(c("X","Y","Z") %in% colnames(x))) x[,c("X","Y","Z")]=value
-  else stop("Not a neuron or dotprops object or a matrix-like object with XYZ volnames")
+  xyzn=c("X","Y","Z")
+  if(is.neuron(x)) x$d[,xyzn]=value
+  else if(is.dotprops(x)) x$points[,xyzn]=value
+  else if(!any(is.na(matched_cols<-match(xyzn, toupper(colnames(x)))))) {
+    x[,matched_cols]=value
+  }
+  else stop("Not a neuron or dotprops object or a matrix-like object with XYZ colnames")
   x
 }
 
-#' @S3method xyzmatrix<- hxsurf
+#' @export
 `xyzmatrix<-.hxsurf`<-function(x, value){
   x$Vertices[,1:3]=value
   x
 }
 
-#' @S3method xyzmatrix<- igraph
+#' @export
 `xyzmatrix<-.igraph`<-function(x, value){
   igraph::set.graph.attribute(x, 'xyz', value)
 }
 
 #' Mirror 3d object about a given axis, optionally using a warping registration
 #' 
-#' @details The warping registration can be used to account e.g. for the 
-#'   asymmetry. between brain hemispheres
+#' @description mirroring with a warping registration can be used to account 
+#'   e.g. for the asymmetry between brain hemispheres.
 #'   
-#' @details This function is agnostic re node vs cell data, but for node data 
+#'   This function is agnostic re node vs cell data, but for node data 
 #'   BoundingBox should be supplied while for cell, it should be bounds. See 
 #'   \code{\link{boundingbox}} for details of BoundingBox vs bounds.
+#'   
+#'   See \code{\link{nlapply}} for details of the \code{subset} and 
+#'   \code{OmitFailures} arguments.
+#'   
 #' @param x Object with 3d points (with named cols X,Y,Z)
-#' @param ... additional arguments passed to methods or eventually to
+#' @param ... additional arguments passed to methods or eventually to 
 #'   \code{xform}
 #' @return Object with transformed points
 #' @export
@@ -219,7 +236,7 @@ mirror<-function(x, ...) UseMethod('mirror')
 #' @param transform whether to use warp (default) or affine component of 
 #'   registration, or simply flip about midplane of axis.
 #' @method mirror default
-#' @S3method mirror default
+#' @export
 #' @rdname mirror
 mirror.default<-function(x, mirrorAxisSize, mirrorAxis=c("X","Y","Z"),
                          warpfile=NULL, transform=c("warp",'affine','flip'), ...){
@@ -246,8 +263,13 @@ mirror.default<-function(x, mirrorAxisSize, mirrorAxis=c("X","Y","Z"),
   }
 }
 #' @method mirror neuronlist
-#' @S3method mirror neuronlist
+#' @param subset For \code{mirror.neuronlist} indices
+#'   (character/logical/integer) that specify a subset of the members of
+#'   \code{x} to be transformed.
+#' @inheritParams nlapply
+#' @export
 #' @rdname mirror
-mirror.neuronlist<-function(x, ...){
-  nlapply(x,mirror,...)
+#' @seealso \code{\link{nlapply}}
+mirror.neuronlist<-function(x, subset=NULL, OmitFailures=NA, ...){
+  nlapply(x, FUN=mirror, ..., subset=subset, OmitFailures=OmitFailures)
 }

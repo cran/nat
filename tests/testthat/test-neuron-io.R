@@ -710,6 +710,7 @@ test_that("reading identical neuron in 2 amira formats and 3 encodings works",{
 })
 
 test_that("reading gzipped binary format amiramesh neurons works",{
+  library(nat.utils)
   expect_true(is.gzip("testdata/neuron/testneuron_am3d_ascii.am.gz"))
   expect_true(is.gzip("testdata/neuron/testneuron_am3d.am.gz"))
   expect_false(is.gzip("testdata/neuron/testneuron_am3d.am"))
@@ -780,6 +781,10 @@ test_that("we can write neuron to swc file",{
   
   expect_equal(write.neuron(y, dir=td, ext='.swc'),
                file.path(td,'EBH11R.swc'))
+  expect_equal(write.neuron(y, dir=td, format='swc', file='rhubarb'),
+               file.path(td,'rhubarb.swc'))
+  expect_equal(write.neuron(y, dir=td, format='swc', ext='.swcreally', file='rhubarb'),
+               file.path(td,'rhubarb.swcreally'))
   expect_equal(f<-write.neuron(y, dir=td, format='swc', ext='_skel.swc'),
                file.path(td,'EBH11R_skel.swc'))
   expect_equal(read.neuron(f),y,fieldsToExclude='NeuronName')
@@ -805,9 +810,12 @@ test_that("we can write neuron to amira hxlineset file",{
   expect_equal(f<-write.neuron(y, dir=td, format='hxlineset'),
                file.path(td,'EBH11R.am'))
   expect_equal(read.neuron(f),y,fieldsToExclude='NeuronName')
+  
+  y$d$W[2]=NA
+  expect_warning(write.neuron(y, file=file.path(td,'EBH11R_narad.am'), format='hxlineset'))
 })
 
-test_that("we can write neuron to unknown format",{
+test_that("we get an error when writing neuron to unknown format",{
   expect_error(write.neuron(Cell07PNs[[1]], dir=td, format='rhubarb'))
 })
 
@@ -817,8 +825,49 @@ test_that("write.neurons works",{
   on.exit(unlink(td,recursive=TRUE))
   neurons_to_write=subset(Cell07PNs,Scored.By%in%c("ACH","CJP"),rval='names')
   expect_is(written_files<-write.neurons(Cell07PNs, dir=td,
+                                         INDICES=neurons_to_write,
+                                         format='hxlineset'),'character')
+  files_found=dir(td,recursive=T,pattern='am$')
+  expect_true(all(basename(written_files)%in%basename(files_found)))
+  
+  expect_is(written_files<-write.neurons(Cell07PNs, dir=td, subdir="CellType",
+                                         INDICES=neurons_to_write,ext='.am3d',
+                                         format='hxskel'),'character')
+  files_found=dir(td,recursive=T,pattern='am3d$')
+  expect_true(all(basename(written_files)%in%basename(files_found)))
+  expect_equal(with(Cell07PNs[neurons_to_write],as.character(Glomerulus)),
+               basename(dirname(written_files)))
+
+  expect_is(written_files<-write.neurons(Cell07PNs, dir=td, subdir="CellType",
+                                         INDICES=neurons_to_write, files=basename(TraceFile),
+                                         ext='.am3d', format='hxskel', Force=T),
+            'character')
+  files_found=dir(td,recursive=T,pattern='am3d$')
+  expect_true(all(basename(written_files)%in%basename(files_found)), 
+              'specify output file names directly')
+
+  expect_is(written_files<-write.neurons(Cell07PNs, dir=td, subdir="CellType",
+                                         INDICES=neurons_to_write, files=basename(TraceFile),
+                                         ext='.am3d', format='hxskel', Force=T),
+            'character')
+  files_found=dir(td,recursive=T,pattern='am3d$')
+  expect_true(all(basename(written_files)%in%basename(files_found)), 'specify files')
+  
+  expect_is(written_files<-write.neurons(Cell07PNs, dir=td, subdir=Glomerulus,
+                                         INDICES=neurons_to_write,ext='.amm',
+                                         format='hxskel'),'character')
+  files_found=dir(td,recursive=T,pattern='amm$')
+  expect_true(all(basename(written_files)%in%basename(files_found)))
+  expect_equal(with(Cell07PNs[neurons_to_write],as.character(Glomerulus)),
+               basename(dirname(written_files)))
+  
+  nldf=subset(Cell07PNs, neurons_to_write, rval="data.frame")
+  nl=Cell07PNs[neurons_to_write]
+  attr(nl,'df')=NULL
+  expect_is(written_files<-write.neurons(nl, dir=td,
                 INDICES=neurons_to_write,
-                subdir=file.path(Glomerulus),format='swc'),'character')
+                subdir=nldf$Glomerulus,format='swc'),'character',
+            info='use variable from calling environment to specify subdir')
   files_found=dir(td,recursive=T,pattern='swc$')
   expect_true(all(basename(written_files)%in%basename(files_found)))
 })

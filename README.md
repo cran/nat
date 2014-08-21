@@ -1,5 +1,5 @@
 # nat: NeuroAnatomy Toolbox
-[![Build Status](https://travis-ci.org/jefferis/nat.svg)](https://travis-ci.org/jefferis/nat)
+[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.10171-blue.svg)](http://dx.doi.org/10.5281/zenodo.10171) [![Build Status](https://travis-ci.org/jefferis/nat.svg)](https://travis-ci.org/jefferis/nat) 
 
 An R package for the (3D) visualisation and analysis of biological image data, especially tracings of
 single neurons. See [nat.examples](https://github.com/jefferis/nat.examples) and [frulhns](https://github.com/jefferis/frulhns) for sample code.
@@ -16,87 +16,102 @@ Quick Start
 
 For the impatient ...
 
-    # install
-    install.packages("nat")
-    # use
-    library(nat)
-    
-    # plot some test data (?kcs20 for details)
-    # Drosophila Kenyon cells processed from raw data at http://flycircuit.tw
-    head(kcs20)
-    open3d()
-    plot3d(kcs20, col=type)
-    # get help
-    ?nat
+```r
+# install
+install.packages("nat")
+# use
+library(nat)
 
-A larger data set, 300 olfactory projection neurons from [Grosjean et al 2011](http://flybrain.mrc-lmb.cam.ac.uk/dokuwiki/doku.php?id=si:grosjean_and_silbering_2011)
+# plot some test data (?kcs20 for details)
+# Drosophila Kenyon cells processed from raw data at http://flycircuit.tw
+head(kcs20)
+open3d()
+plot3d(kcs20, col=type)
+# get help
+?nat
+```
 
-    load(url("http://flybrain.mrc-lmb.cam.ac.uk/si/grosjean11/MyNeuronsFCIR.rda"))
-    plot3d(MyNeurons[[1]])
-    clear3d()
-    head(MyNeurons)
-    
-    # 3d plot of neurons from olfactory glomeruli beginning DM
-    # coloured by glomerulus
-    rval=plot3d(MyNeurons, subset=grepl("^DM",Glomerulus), col=factor(Glomerulus),
-      lwd=2, WithNodes=FALSE)
-    # make a legend so that you know which colours match which glomerulus
-    with(attr(rval,'df'), legend('center', legend = unique(Glomerulus), fill=unique(col)))
-    
-    # more help
-    ?plot3d.neuronlist
-    ?subset.neuronlist
+A larger data set, 300 olfactory projection neurons from [Grosjean et al 2011](http://flybrain.mrc-lmb.cam.ac.uk/dokuwiki/doku.php?id=si:grosjean_and_silbering_2011):
+
+```r
+load(url("http://flybrain.mrc-lmb.cam.ac.uk/si/grosjean11/MyNeuronsFCIR.rda"))
+plot3d(MyNeurons[[1]])
+clear3d()
+head(MyNeurons)
+
+# 3d plot of neurons from olfactory glomeruli beginning DM
+# coloured by glomerulus
+rval=plot3d(MyNeurons, subset=grepl("^DM",Glomerulus), col=factor(Glomerulus),
+  lwd=2, WithNodes=FALSE)
+# make a legend so that you know which colours match which glomerulus
+with(attr(rval,'df'), legend('center', legend = unique(Glomerulus), fill=unique(col)))
+
+# more help
+?plot3d.neuronlist
+?subset.neuronlist
+```
 
 # Details
+## Prerequisites
+**nat** is an R package and therefore runs on Mac/Linux/Windows. The only pre-requisite for most functionality is a recent version of R (>=3.1.0 recommended).
+
+* http://www.r-project.org
+
+3D visualisation is provided by the rgl package based on OpenGL. On Mac OS X you must have a copy of XQuartz, the X11 window manager, installed. This is no longer a default install since Mac OS X 10.8, but the OS should offer to it install it for you if something tries to use it. Alternatively you can get it directly from https://xquartz.macosforge.org/landing/
+
+If you want to apply non-rigid registrations calculated by the Computational Morphometry Toolkit (CMTK) you will need to install that separately – see section *External Dependencies* below. 
+
 ## Installation
-As of v1.0 there is a released version on CRAN.
+As of v1.0 there is a released version on CRAN. This is normally updated only
+every few months.
 
 ```r
 install.packages("nat")
 ```
 
-It you wish to run the package tests, it is necessary to install with 
-`dependencies=TRUE`.
-
-### Released versions
-Interim **source code** packages for released versions are available from our 
-lab repository:
+It you wish to run the package tests, it is necessary to install with all dependencies:
 
 ```r
-# when binary packages are preferred (e.g. mac/windows)
-install.packages("nat",repos=c("http://jefferislab.org/R",getOption("repos")),
-                 type="both")
-# when source packages are the default (e.g. linux)
-install.packages("nat",repos=c("http://jefferislab.org/R",getOption("repos")))
+install.packages("nat", dependencies=TRUE)
 ```
 
-Note the specification of both the jefferislab.org repository and the default 
-CRAN repository in order to ensure that package dependencies are installed from 
-CRAN and the main package is installed from our repository. Note also that it is
-necessary to specify `type="both"` on platforms where binary packages are the
-norm (Windows/MacOS X) since **nat** is only provided as a source package on our
-repository.
-
-### Bleeding Edge
-You can, however, download the [tar ball](https://github.com/jefferis/nat/tarball/master),
-and run `R CMD INSTALL` on it, or use the **devtools** package to install the development version:
+### Development version
+**nat** remains under quite active development, so you may wish to install the
+development version directly from github. The recommended way to do this is to
+install Hadley Wickham's invaluable [devtools](http://CRAN.R-project.org/package=devtools)
+package (if you have not already done so) and then use that to install nat.
 
 ```r
-# install.packages("devtools")
-devtools::install_github("nat", "jefferis")
+# install devtools if required
+if (!require("devtools")) install.packages("devtools")
+# then install nat
+devtools::install_github("jefferis/nat")
 ```
 
-Note: Windows users need [Rtools](http://www.murdoch-sutherland.com/Rtools/) and
-[devtools](http://CRAN.R-project.org/package=devtools) to install this way.
+The **nat** package includes extensive unit tests which are run along with R's
+(extremely fastidious) package check routines by the [Travis](http://travis-ci.org/jefferis/nat)
+continuous integration server. The master branch is therefore considered very stable.
+However, you can install the latest point release version as follows:
+
+```r
+devtools::install_github("jefferis/nat",ref="release")
+```
+if you want to have the latest confirmed stable version. The same syntax can
+be used to install any arbitrary version that you want from github. See `?install_github`
+for details.
+
+Note: Windows users need [Rtools](http://www.murdoch-sutherland.com/Rtools/) to
+install in this way, but devtools should offer to install this for you if you
+do not already have it.
 
 ## External Dependencies
-**nat** is self sufficient for core functionality, but the transformation of 3d
+**nat** is self sufficient for core functionality, but the transformation of 3D
 data using Computational Morphometry Toolkit (CMTK) registrations depends on an
 external installation of that toolkit. CMTK binaries can be downloaded for
 Windows, Linux and Mac at <http://www.nitrc.org/projects/cmtk/>. Source code is 
 available from the same site or an unofficial mirror repository at 
 <https://github.com/jefferis/cmtk>. We have extensive experience of using CMTK
-under linux (where we compile from source) and mac (where we compile or use the
+under Linux (where we compile from source) and Mac (where we compile or use the
 MacOSX-10.6-x86_64.dmg binary installers). We have also used 
 [neurodebian](http://neuro.debian.net/pkgs/cmtk.html) to install as part of the
-travis continuous integration setup (see the project's [.travis.yml](https://github.com/jefferis/nat/blob/master/.travis.yml) file).
+Travis continuous integration setup (see the project's [.travis.yml](https://github.com/jefferis/nat/blob/master/.travis.yml) file).

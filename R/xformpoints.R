@@ -20,7 +20,7 @@ xformpoints<-function(reg, points, ...) {
 #'   performed in sequence order, such that
 #'   \code{xformpoints(c(a,b,c), x) == xformpoints(c, (xformpoints(b, xformpoints(a, x))))}
 #' @method xformpoints character
-#' @S3method xformpoints character
+#' @export
 #' @rdname xformpoints
 xformpoints.character<-function(reg, points, ...){
     if (is.cmtkreg(reg[1], filecheck='magic')) xformpoints(as.cmtkreg(reg), points, ...)
@@ -60,6 +60,22 @@ xformpoints.cmtkreg<-function(reg, points, transformtype=c('warp','affine'),
   
   transformtype=match.arg(transformtype)
   direction=match.arg(direction,c("inverse",'forward'),several.ok=TRUE)
+  
+  if(length(reg)>1 && !cmtk.version(minimum = '3.2.2')){
+    # there is a bug in applying compound registrations in CMTK<=3.2.1
+    # see https://github.com/jefferis/cmtk/commit/209168d892d8980e47
+    return(mapply(xformpoints.cmtkreg, reg=reg, direction=direction, 
+           MoreArgs = list(points=points, transformtype=transformtype, 
+                           FallBackToAffine=FallBackToAffine, ...=...)))
+  }
+  
+  # check for NAs
+  nas=is.na(points[,1])
+  if(sum(nas)) {
+    origpoints=points
+    points=points[!nas, , drop=FALSE]
+  }
+  
   pointsfile=tempfile(fileext=".txt")
   on.exit(unlink(pointsfile), add = TRUE)
   write.table(points, file=pointsfile, row.names=FALSE, col.names=FALSE)
@@ -84,12 +100,18 @@ xformpoints.cmtkreg<-function(reg, points, transformtype=c('warp','affine'),
       pointst[naPoints, ] = affpoints
     }
   }
-  dimnames(pointst)=dimnames(points)
-  pointst
+  
+  if(sum(nas)){
+    origpoints[!nas, ]=pointst
+    origpoints
+  } else {
+    dimnames(pointst)=dimnames(points)
+    pointst
+  }
 }
 
 #' @method xformpoints default
-#' @S3method xformpoints default
+#' @export
 #' @rdname xformpoints
 xformpoints.default<-function(reg, points, ...){
   if(!is.matrix(points) && !is.data.frame(points)) stop("points must be a matrix or dataframe")

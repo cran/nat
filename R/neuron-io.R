@@ -37,8 +37,8 @@ read.neuron<-function(f, format=NULL, ...){
     n=match.fun(ffs$read)(f, ...)
   }
   # make sure that neuron actually inherits from neuron
-  # we can normally rely on dotprops objects to have the correct class
-  if(is.dotprops(n)) n else as.neuron(n)
+  # we can rely on dotprops/neuronlist objects to have the correct class
+  if(is.dotprops(n) || is.neuronlist(n)) n else as.neuron(n)
 }
 
 #' Read one or more neurons from file to a neuronlist in memory
@@ -161,6 +161,14 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
     if(inherits(x,'try-error')){
       if(OmitFailures) x=NULL
       else x=NA
+    }
+    if(is.neuronlist(x)) {
+      if(length(paths)>1)
+        stop("It is not possible to load multiple neuronlists or a mix of",
+             " neurons and neuronlists!\nPlease specfiy a single file or",
+             " use a pattern to exclude files you did not mean to read.")
+      nl=x
+      break
     }
     nl[[n]]=x
   }
@@ -325,27 +333,39 @@ getformatreader<-function(file, class=NULL){
 #' @description \code{getformatwriter} gets the function to write a file
 #' @details If \code{ext=NA} then extension will not be used to query file 
 #'   formats and it will be overwritten by the default extensions returned by 
-#'   \code{fileformats}. If \code{ext='.someext'} \code{getformatwriter} will
-#'   use the specified extension to overwrite the value returned by
-#'   \code{fileformats}. If \code{ext=NULL} and
-#'   \code{file='somefilename.someext'} then \code{ext} will be set to
-#'   \code{'someext'} and that will override the value returned by
-#'   \code{fileformats}. See \code{\link{write.neuron}} for code to make this
-#'   discussion more concrete.
+#'   \code{fileformats}. If \code{ext='.someext'} \code{getformatwriter} will 
+#'   use the specified extension to overwrite the value returned by 
+#'   \code{fileformats}. If \code{ext=NULL} and 
+#'   \code{file='somefilename.someext'} then \code{ext} will be set to 
+#'   \code{'someext'} and that will override the value returned by 
+#'   \code{fileformats}. If \code{file='somefile_without_extension'} then the
+#'   suppplied or calculated extension will be appended to \code{file}. See
+#'   \code{\link{write.neuron}} for code to make this discussion more concrete.
 #' @rdname fileformats
 #' @export
 getformatwriter<-function(format=NULL, file=NULL, ext=NULL, class=NULL){
   
-  if(!is.null(file) && is.null(ext))
-    ext=sub(".*(\\.[^.]+$)","\\1",basename(file))
+  if(!is.null(file) && is.null(ext)){
+    incomingext=tools::file_ext(file)
+    if(nzchar(incomingext)) ext=paste0(".", incomingext)
+  }
   ext_was_set=!is.null(ext) && !is.na(ext)
+  
   nfs=fileformats(format=format, ext=ext, class=class, rval='all', write=TRUE)
   if(length(nfs)>1) stop("Ambiguous file format specification!")
   if(length(nfs)==0) stop("No matching writer for this file format!")
   r=nfs[[1]]
   
   if(ext_was_set) r$ext=ext
-  if(!is.null(file)) r$file=sub("\\.[^.]+$",r$ext,file)
+  if(!is.null(file)) {
+    r$file=if(nzchar(tools::file_ext(file))){
+      # the file we were given has an extension
+      sub("\\.[^.]+$", r$ext, file)
+    } else {
+      # the input file did not have an extension so just append
+      paste0(file, r$ext)
+    }
+  }
   r
 }
 
@@ -363,7 +383,8 @@ read.neuron.swc<-function(f, ...){
   ColumnNames<-c("PointNo","Label","X","Y","Z","W","Parent")
   d=read.table(f, header = FALSE, sep = "", quote = "\"'", dec = ".",
                col.names=ColumnNames, check.names = TRUE, fill = FALSE,
-               strip.white = TRUE, blank.lines.skip = TRUE, comment.char = "#")
+               strip.white = TRUE, blank.lines.skip = TRUE, comment.char = "#",
+               colClasses=c("integer",'integer','numeric','numeric','numeric','numeric','integer'))
   # multiply by 2 to get diam which is what I work with internally
   d$W=d$W*2
   as.neuron(d, InputFileName=f, ...)
@@ -392,6 +413,14 @@ read.neuron.swc<-function(f, ...){
 #' @examples
 #' # show the currently registered file formats that we can write
 #' fileformats(class='neuron', write=TRUE)
+#' \dontrun{
+#' write.neuron(Cell07PNs[[1]], file='myneuron.swc')
+#' # writes out "myneuron.swc" in SWC format
+#' write.neuron(Cell07PNs[[1]], format = 'hxlineset', file='myneuron.amiramesh')
+#' # writes out "myneuron.amiramesh" in Amira hxlineset format
+#' write.neuron(Cell07PNs[[1]], format = 'hxlineset', file='myneuron')
+#' # writes out "myneuron.am" in Amira hxlineset format
+#' }
 write.neuron<-function(n, file=NULL, dir=NULL, format=NULL, ext=NULL, 
                        Force=FALSE, MakeDir=TRUE, ...){
   if(is.dotprops(n)){
@@ -451,7 +480,7 @@ write.neuron.swc<-function(x, file, ...){
   writeLines(c("# SWC format file",
                "# based on specifications at http://research.mssm.edu/cnic/swc.html"),
              con=file)
-  cat("# Created by nat::write.neuron.swc", file=file, append=TRUE)  
+  cat("# Created by nat::write.neuron.swc\n", file=file, append=TRUE)  
   cat("#", colnames(df), "\n", file=file, append=TRUE)
   write.table(df, file, col.names=F, row.names=F, append=TRUE, ...)
 }
@@ -462,8 +491,10 @@ write.neuron.swc<-function(x, file, ...){
 #' @param dir directory to write neurons
 #' @param subdir String naming field in neuron that specifies a subdirectory OR 
 #'   expression to evaluate in the context of neuronlist's df attribute
-#' @param INDICES Character vector of the names of a subset of neurons in
+#' @param INDICES Character vector of the names of a subset of neurons in 
 #'   neuronlist to write.
+#' @param files Character vector or expression specifying output filenames. See
+#'   examples and \code{\link{write.neuron}} for details.
 #' @param ... Additional arguments passed to write.neuron
 #' @author jefferis
 #' @export
@@ -473,37 +504,51 @@ write.neuron.swc<-function(x, file, ...){
 #' \dontrun{
 #' write.neurons(Cell07PNs,dir="testwn",
 #'   subdir=file.path(Glomerulus,Scored.By),format='hxlineset')
+#' # ensure that the neurons are named according to neuronlist names
+#' write.neurons(Cell07PNs, dir="testwn", files=names(Cell07PNs),
+#'   subdir=file.path(Glomerulus,Scored.By),format='hxlineset')
 #' # only write a subset
 #' write.neurons(subset(Cell07PNs, Scored.By="ACH"),dir="testwn2",
-#'   subdir=file.path(Glomerulus),format='hxlineset')
+#'   subdir=Glomerulus,format='hxlineset')
 #' # The same, but likely faster for big neuronlists
 #' write.neurons(Cell07PNs, dir="testwn3",
 #'   INDICES=subset(Cell07PNs,Scored.By="ACH",rval='names'),
-#'   subdir=file.path(Glomerulus),format='hxlineset')
+#'   subdir=Glomerulus,format='hxlineset')
+#' # set file name explicitly using a field in data.frame
+#' write.neurons(subset(Cell07PNs, Scored.By="ACH"),dir="testwn4",
+#'   subdir=Glomerulus, files=paste0(ID,'.am'), format='hxlineset')
 #' }
-write.neurons<-function(nl, dir, subdir=NULL, INDICES=names(nl), ...){
+write.neurons<-function(nl, dir, subdir=NULL, INDICES=names(nl), files=NULL, ...){
   if(!file.exists(dir)) dir.create(dir)
   df=attr(nl,'df')
   # Construct subdirectory structure based on 
   ee=substitute(subdir)
   subdirs=NULL
-  if(is.call(ee) && !is.null(df)){
-    df=df[INDICES,]
+  if(!is.null(ee) && !is.character(ee)){
+    if(!is.null(df)) df=df[INDICES,]
     subdirs=file.path(dir, eval(ee, df, parent.frame()))
     names(subdirs)=INDICES
+  }
+  ff=substitute(files)
+  if(!is.null(ff)){
+    if(!is.character(ff))
+      files=eval(ff, df, parent.frame())
+    if(is.null(names(files))) names(files)=INDICES
   }
   written=structure(rep("",length(INDICES)), .Names = INDICES)
   for(nn in INDICES){
     n=nl[[nn]]
     thisdir=dir
     if(is.null(subdirs)){
-      propval=n[[subdir]]
-      if(!is.null(propval)) thisdir=file.path(dir, propval)
+      if(!is.null(subdir)){
+        propval=n[[subdir]]
+        if(!is.null(propval)) thisdir=file.path(dir, propval)
+      }
     } else {
       thisdir=subdirs[nn]
     }
     if(!file.exists(thisdir)) dir.create(thisdir, recursive=TRUE)
-    written[nn]=write.neuron(n, dir=thisdir, ...)
+    written[nn]=write.neuron(n, dir=thisdir, file = files[nn], ...)
   }
   invisible(written)
 }

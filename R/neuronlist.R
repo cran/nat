@@ -3,13 +3,15 @@
 #' @description \code{neuronlist} objects consist of a list of neuron objects 
 #'   along with an optional attached dataframe containing information about the 
 #'   neurons. \code{neuronlist} objects can be indexed using their name or the 
-#'   number of the neuron like a regular list. If the \code{[} operator is used
-#'   to index the list, the attached dataframe will also be subsetted.
-#' 
-#' It is perfectly acceptable not to pass any parameters, generating an empty 
-#' neuronlist
+#'   number of the neuron like a regular list. Both the \code{list} itself and
+#'   the attached \code{data.frame} must have the same unique (row)names. If the
+#'   \code{[} operator is used to index the list, the attached dataframe will
+#'   also be subsetted.
+#'   
+#'   It is perfectly acceptable not to pass any parameters, generating an empty 
+#'   neuronlist
 #' @param ... objects to be turned into a list
-#' @param DATAFRAME an optional \code{data.frame} to attach to the neuronlist
+#' @param DATAFRAME an optional \code{data.frame} to attach to the neuronlist 
 #'   containing information about each neuron.
 #' @return A new neuronlist object.
 #' @family neuronlist
@@ -19,6 +21,8 @@
 #' nl=neuronlist()
 #' # slice an existing neuronlist with regular indexing
 #' kcs5=kcs20[1:5]
+#' # list all methods for neuronlist objects
+#' methods(class='neuronlist')
 neuronlist <- function(..., DATAFRAME=NULL) as.neuronlist(list(...), df=DATAFRAME)
 
 #' Test objects of neuronlist class to store multiple neurons
@@ -37,19 +41,26 @@ is.neuronlist<-function(x) {
 }
 
 #' Make a list of neurons that can be used for coordinate plotting/analysis
-#'
-#' Note that it can cope with both neurons and dotprops but AddClassToNeurons
-#' parameter will only apply to things that look like neurons but don't have
-#' a class of neuron.
+#' 
+#' @details Note that \code{as.neuronlist} can cope with both \code{neurons} and
+#'   \code{dotprops} objects but \code{AddClassToNeurons} will only apply to 
+#'   things that look like neurons but don't have a class of \code{neuron}.
+#'   
+#'   See \code{\link{neuronlist}} details for more information.
 #' @param l An existing list or a single neuron to start a list
 #' @param ... Additional arguments passed to methods
 #' @return neuronlist with attr('df')
 #' @export
-#' @seealso \code{\link{is.neuronlist}},\code{\link{is.neuron}},\code{\link{is.dotprops}}
+#' @seealso 
+#' \code{\link{is.neuronlist}},\code{\link{is.neuron}},\code{\link{is.dotprops}}
 as.neuronlist<-function(l, ...) UseMethod("as.neuronlist")
 
-#' @S3method as.neuronlist default
+#' @export
+#' @param df the data.frame to attach with additional metadata.
+#' @param AddClassToNeurons Whether to ensure neurons have class \code{neuron}
+#'   (see details).
 #' @method as.neuronlist default
+#' @rdname as.neuronlist
 as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
   if(is.neuron(l)) {
     n<-l
@@ -75,7 +86,7 @@ as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
 }
 
 #' @method [ neuronlist
-#' @S3method [ neuronlist
+#' @export
 "[.neuronlist" <- function(x,i,...) {
   nl2=structure(NextMethod("["), class = class(x))
   df=attr(x,'df')
@@ -85,12 +96,92 @@ as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
   nl2
 }
 
-#' lapply and mapply for neuronlists
+#' Combine multiple neuronlists into a single list
 #' 
-#' Looks after class and any attached dataframe.
+#' @details Uses \code{\link[plyr]{rbind.fill}} to join any attached dataframes,
+#'   so missing values are replaced with NAs.
+#' @param ... neuronlists to combine
+#' @param recursive Presently ignored
+#' @export
+#' @seealso \code{\link[base]{c}}
+#' @examples
+#' stopifnot(all.equal(kcs20[1:2],c(kcs20[1],kcs20[2])))
+c.neuronlist<-function(..., recursive = FALSE){
+  args=list(...)
+  if(!all(sapply(args, inherits, "neuronlist")))
+    stop("method only applicable to multiple neuronlist objects")
+  
+  neuron_names=unlist(lapply(args, names))
+  if(any(duplicated(neuron_names))) 
+    stop("Cannot join neuronlists containing neurons with the same name!")
+  
+  old.dfs=lapply(args, attr, 'df')
+  null_dfs=sapply(old.dfs, is.null)
+  if(any(null_dfs) && !all(null_dfs)){
+    # we need to ensure that the eventual data.frame has suitable rownames
+    # so add dummy empty data.frame with appropriate rownames
+    old.dfs[null_dfs]=lapply(args[null_dfs],
+                             function(x) data.frame(row.names = names(x)))
+  }
+  new.df=plyr::rbind.fill(old.dfs)
+  # rbind.fill doesn't seem to look after rownames
+  if(!is.null(new.df))
+    rownames(new.df)=neuron_names
+
+  as.neuronlist(NextMethod(...), df = new.df)
+}
+
+#' lapply and mapply for neuronlists (with optional parallelisation)
+#' 
+#' @description versions of lapply and mapply that look after the class and 
+#'   attached dataframe of neuronlist objects. \code{nlapply} can apply a 
+#'   function to only a \code{subset} of elements in the input neuronlist. 
+#'   Internally \code{nlapply} uses \code{plyr::llply} thereby enabling progress
+#'   bars and simple parallelisation (see plyr section and examples).
+#'   
+#' @details When \code{OmitFailures} is not \code{NA}, \code{FUN} will be 
+#'   wrapped in a call to \code{try} to ensure that failure for any single 
+#'   neuron does not abort the nlapply/nmapply call. When 
+#'   \code{OmitFailures=TRUE} the resultant neuronlist will be subsetted down to
+#'   return values for which \code{FUN} evaluated successfully. When 
+#'   \code{OmitFailures=FALSE}, "try-error" objects will be left in place. In 
+#'   either of the last 2 cases error messages will not be printed because the 
+#'   call is wrapped as \code{try(expr, silent=TRUE)}.
+#'   
+#' @section plyr: The arguments of most interest from plyr are:
+#'   
+#'   \itemize{
+#'   
+#'   \item .progress set to \code{"text"} for a basic progress bar
+#'   
+#'   \item .parallel set to \code{TRUE} for parallelisation after registering a 
+#'   parallel backend (see below).
+#'   
+#'   \item .paropts Additional arguments for parallel computation. See 
+#'   \code{\link[plyr]{llply}} for details.
+#'   
+#'   }
+#'   
+#'   Before using parallel code within an R session you must register a suitable
+#'   parallel backend. The simplest example is the multicore option provided by 
+#'   the \code{doMC} package that is suitable for a spreading computational load
+#'   across multiple cores on a single machine. An example is provided below.
+#'   
+#'   Note that the progess bar and parallel options cannot be used at the same 
+#'   time. You may want to start a potentially long-running job with the 
+#'   progress bar option and then abort and re-run with \code{.parallel=TRUE} if
+#'   it looks likely to take a very long time.
+#'   
 #' @param X A neuronlist
 #' @param FUN Function to be applied to each element of X
 #' @param ... Additional arguments for FUN (see details)
+#' @param subset Character, numeric or logical vector specifying on which subset
+#'   of \code{X} the function \code{FUN} should be applied. Elements outside the
+#'   subset are passed through unmodified.
+#' @param OmitFailures Whether to omit neurons for which \code{FUN} gives an 
+#'   error. The default value (\code{NA}) will result in nlapply stopping with 
+#'   an error message the moment there is an eror. For other values, see 
+#'   details.
 #' @return A neuronlist
 #' @export
 #' @seealso \code{\link{lapply}}
@@ -103,6 +194,19 @@ as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
 #' plot3d(kcs20,col='grey')
 #' rgl.close()
 #' 
+#' \dontrun{
+#' ## nlapply example with plyr
+#' ## dotprops.neuronlist uses nlapply under the hood
+#' ## the .progress and .parallel arguments are passed straight to 
+#' system.time(d1<-dotprops(kcs20,resample=1,k=5,.progress='text'))
+#' ## plyr+parallel
+#' library(doMC)
+#' # can also specify cores e.g. registerDoMC(cores=4)
+#' registerDoMC()
+#' system.time(d2<-dotprops(kcs20,resample=1,k=5,.parallel=TRUE))
+#' stopifnot(all.equal(d1,d2))
+#' }
+#' 
 #' ## nmapply example
 #' # flip first neuron in X, second in Y and 3rd in Z
 #' xyzflip=nmapply(mirror, kcs20[1:3], mirrorAxis = c("X","Y","Z"),
@@ -111,9 +215,34 @@ as.neuronlist.default<-function(l, df, AddClassToNeurons=TRUE, ...){
 #' plot3d(kcs20[1:3])
 #' plot3d(xyzflip)
 #' rgl.close()
-nlapply<-function (X, FUN, ...){
-  cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X) else c("neuronlist",'list')
-  structure(lapply(X,FUN,...),class=cl,df=attr(X,'df'))
+nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA){
+  cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X) 
+  else c("neuronlist", 'list')
+  
+  if(!is.null(subset)){
+    if(!is.character(subset)) subset=names(X)[subset]
+    Y=X
+    X=X[subset]
+  }
+  TFUN = if(is.na(OmitFailures)) FUN 
+  else function(...) try(FUN(...), silent=TRUE)
+  rval=structure(plyr::llply(X, TFUN, ...), class=cl, df=attr(X, 'df'))
+  
+  if(isTRUE(OmitFailures))
+    failures=sapply(rval, inherits, 'try-error')
+    
+  if(is.null(subset)){
+    if(isTRUE(OmitFailures) && any(failures)) rval[!failures]
+    else rval
+  } else {
+    if(isTRUE(OmitFailures) && any(failures)){
+      Y[subset[!failures]]=rval[!failures]
+      Y=Y[setdiff(names(Y),subset[failures])]
+    } else {
+      Y[subset]=rval
+    }
+    Y
+  }
 }
 
 #' @inheritParams base::mapply
@@ -122,7 +251,8 @@ nlapply<-function (X, FUN, ...){
 #' @rdname nlapply
 #' @seealso \code{\link{mapply}}
 #' @export
-nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE){
+nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
+                  USE.NAMES = TRUE, OmitFailures=NA){
   if(missing(...))
     stop("First argument in ... must be a neuronlist!")
   
@@ -132,8 +262,14 @@ nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE)
   cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X)
   else c("neuronlist",'list')
   
-  structure(mapply(FUN, ..., MoreArgs = MoreArgs, SIMPLIFY = SIMPLIFY,
-                   USE.NAMES = USE.NAMES), class=cl, df=attr(X, 'df'))
+  TFUN = if(is.na(OmitFailures)) FUN else function(...) try(FUN(...), silent=TRUE)
+  rval=structure(mapply(TFUN, ..., MoreArgs = MoreArgs, SIMPLIFY = SIMPLIFY,
+                        USE.NAMES = USE.NAMES), class=cl, df=attr(X, 'df'))
+  if(isTRUE(OmitFailures)){
+    failures=sapply(rval, inherits, 'try-error')
+    if(any(failures)) rval=rval[!failures]
+  }
+  rval
 }
 
 #' 3D plots of the elements in a neuronlist, optionally using a subset 
@@ -145,9 +281,26 @@ nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE)
 #'   levels against the named elements of colpal. If col evaluates to a factor 
 #'   and colpal is a function then it will be used to generate colours with the 
 #'   same number of levels as are used in col.
+#'   
+#'   WithNodes is \code{FALSE} by default when using \code{plot3d.neuronlist} 
+#'   but remains \code{TRUE} by default when plotting single neurons with 
+#'   \code{\link{plot3d.neuron}}. This is because the nodes quickly make plots 
+#'   with multiple neurons rather busy.
+#'   
+#'   When \code{soma} is \code{TRUE} or a vector of numeric values (recycled as 
+#'   appropriate), the values are used to plot cell bodies. For neurons the 
+#'   values are passed to \code{plot3d.neuron} for neurons. In contrast 
+#'   \code{dotprops} objects still need special handling. There must be columns 
+#'   called \code{X,Y,Z} in the data.frame attached to \code{x}, that are then 
+#'   used directly by code in \code{plot3d.neuronlist}.
+#'   
+#'   Whenever plot3d.neuronlist is called, it will add an entry to an 
+#'   environment \code{.plotted3d} in \code{nat} that stores the ids of all the
+#'   plotted shapes (neurons, cell bodies) so that they can then be removed by a
+#'   call to \code{npop3d}.
 #' @param x a neuron list or, for \code{plot3d.character}, a character vector of
 #'   neuron names. The default neuronlist used by plot3d.character can be set by
-#'   using \code{options(nat.default.neuronlist='mylist')}. See
+#'   using \code{options(nat.default.neuronlist='mylist')}. See 
 #'   ?\code{\link{nat}} for details. \code{\link{nat-package}}.
 #' @param subset Expression evaluating to logical mask for neurons. See details.
 #' @param col An expression specifying a colour evaluated in the context of the 
@@ -157,7 +310,13 @@ nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE)
 #'   skip redraw for individual neurons (this is much faster for large number of
 #'   neurons). Can also accept logical values TRUE (always skip) FALSE (never 
 #'   skip).
+#' @param WithNodes Whether to plot points for end/branch points. Default: 
+#'   \code{FALSE}.
 #' @param ... options passed on to plot3d (such as colours, line width etc)
+#' @param SUBSTITUTE Whether to \code{substitute} the expressions passed as 
+#'   arguments \code{subset} and \code{col}. Default: \code{TRUE}. For expert 
+#'   use only, when calling from another function.
+#' @inheritParams plot3d.neuron
 #' @return list of values of \code{plot3d} with subsetted dataframe as attribute
 #'   \code{'df'}
 #' @export
@@ -178,50 +337,139 @@ nmapply<-function(FUN, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE)
 #' plot3d(jkn,col=sex,colpal=c(male='green',female='magenta'))
 #' plot3d(jkn,col=cut(cVA2,20),colpal=jet.colors)
 #' }
-plot3d.neuronlist<-function(x,subset,col=NULL,colpal=rainbow,skipRedraw=200,...){
+plot3d.neuronlist<-function(x, subset, col=NULL, colpal=rainbow, skipRedraw=200,
+                            WithNodes=FALSE, soma=FALSE, ..., SUBSTITUTE=TRUE){
   # Handle Subset
-  df=attr(x,'df')
   if(!missing(subset)){
-    if(is.null(df)) stop("Can't use a subset unless neuronlist has an attached dataframe")
-    # convert subset (which may a language expression) into an expression that won't get
-    # evaluated until we say so
-    e <- substitute(subset)
-    # now evaluate it looking for variables first in the attached data frame and then 
-    # in the environment of the function
-    r <- eval(e, df, parent.frame())
-    # match characters against neuron names
-    if(is.character(r)){
-      r=match(r,names(x))
-      if(any(is.na(r))) {
-        warning(sum(is.na(r)),' identifiers could not be',
-                ' matched against names of neuronlist')
-        r=na.omit(r)
-      }
-    }
-    # check we got something back
-    if((is.logical(r) && sum(r)==0) || length(r)==0){
-      # no neurons left, so just return
-      return()
-    }
-    # check that subset expression produced sensible result
-    if(is.logical(r)){
-      if(length(r)!=length(x)) stop("Subset result does not have same length as neuronlist x")
-    } else if(is.integer(r)){
-      if(any(r>length(x) | r<0)) stop("Subset evaluated to invalid integer index")
-    } else stop("Subset did not evaluate to logical or character vector")
-    # now just select the neurons we want
-    x=x[r]
-    df=df[r,]
+    # handle the subset expression - we still need to evaluate right away to
+    # avoid tricky issues with parent.frame etc, but we can then leave 
+    # subset.neuronlist to do the rest of the work
+    e <- if(SUBSTITUTE) substitute(subset) else subset
+    r <- eval(e, attr(x,'df'), parent.frame())
+    x <- subset.neuronlist(x, r)
   }
+  
   # Handle Colours
-  col.sub <- substitute(col)
+  col.sub <- if(SUBSTITUTE) substitute(col) else col
   cols <- eval(col.sub, attr(x,'df'), parent.frame())
+  cols=makecols(cols, colpal, length(x))
+  
+  # Speed up drawing when there are lots of neurons
+  if(is.numeric(skipRedraw)) skipRedraw=ifelse(length(x)>skipRedraw,TRUE,FALSE)
+  if(is.logical(skipRedraw)) {
+    if(par3d()$skipRedraw) skipRedraw=TRUE
+    op=par3d(skipRedraw=skipRedraw)
+    on.exit(par3d(op))
+  }
+  
+  rval=mapply(plot3d,x,col=cols,soma=soma,...,MoreArgs = list(WithNodes=WithNodes))
+  df=attr(x,'df')
+  if(is.null(df)) {
+    keys=names(x)
+    if(is.null(keys)) keys=seq_along(x)
+    df=data.frame(key=keys,stringsAsFactors=FALSE)
+  } else if( (length(soma)>1 || soma) && isTRUE(is.dotprops(x[[1]])) &&
+               all(c("X","Y","Z") %in% colnames(df))){
+    if(is.logical(soma)) soma=2
+    rval <- c(rval, spheres3d(df[, c("X", "Y", "Z")], radius = soma, col = cols))
+  }
+  assign(".last.plot3d", rval, envir=.plotted3d)
+  df$col=cols
+  attr(rval,'df')=df
+  invisible(rval)
+}
+
+#' @rdname plot3d.neuronlist
+#' @method plot3d character
+#' @export
+#' @param db A neuronlist to use as the source of objects to plot. If missing,
+#'   defaults to neuronlist specified by options('nat.default.neuronlist')
+#' @description \code{plot3d.character} is a convenience method intended for 
+#'   exploratory work on the command line.
+#' @details plot3d.character will check if options('nat.default.neuronlist') has
+#'   been set and then use x as an identifier to find a neuron in that 
+#'   neuronlist.
+plot3d.character<-function(x, db, ...) {
+  if(missing(db))
+    db=get(getOption('nat.default.neuronlist',
+                     default=stop('Option "nat.default.neuronlist" is not set.",
+                                  " See ?nat for details.')))
+  if(!is.neuronlist(db)) 
+    stop("Please set options(nat.default.neuronlist='myfavneuronlist'). ',
+         'See ?nat for details.")
+  plot3d(db, pmatch(x, names(db)), ...)
+}
+
+#' 2D plots of the elements in a neuronlist, optionally using a subset 
+#' expression
+#' 
+#' @details The col and subset parameters are evaluated in the context of the 
+#'   dataframe attribute of the neuronlist. If col evaluates to a factor and 
+#'   colpal is a named vector then colours will be assigned by matching factor 
+#'   levels against the named elements of colpal. If col evaluates to a factor 
+#'   and colpal is a function then it will be used to generate colours with the 
+#'   same number of levels as are used in col.
+#' @param x a neuron list or, for \code{plot3d.character}, a character vector of
+#'   neuron names. The default neuronlist used by plot3d.character can be set by
+#'   using \code{options(nat.default.neuronlist='mylist')}. See 
+#'   ?\code{\link{nat}} for details. \code{\link{nat-package}}.
+#' @param col An expression specifying a colour evaluated in the context of the 
+#'   dataframe attached to nl (after any subsetting). See details.
+#' @param add Logical specifying whether to add data to an existing plot or make
+#'   a new one. The default value of \code{NULL} creates a new plot with the
+#'   first neuron in the neuronlist and then adds the remaining neurons.
+#' @param ... options passed on to plot (such as colours, line width etc)
+#' @inheritParams plot3d.neuronlist
+#' @return list of values of \code{plot} with subsetted dataframe as attribute 
+#'   \code{'df'}
+#' @export
+#' @method plot neuronlist
+#' @seealso \code{\link{nat-package}, \link{plot3d.neuronlist}}
+#' @examples
+#' plot(Cell07PNs[1:4], ylim=c(140, 85))
+#' plot(Cell07PNs, subset=Glomerulus%in%c("DA1", "DP1m"), col=Glomerulus,
+#'   ylim=c(140,75), WithNodes=FALSE)
+plot.neuronlist<-function(x, subset, col=NULL, colpal=rainbow, add=NULL, ..., SUBSTITUTE=TRUE){
+  # Handle Subset
+  if(!missing(subset)){
+    # handle the subset expression - we still need to evaluate right away to
+    # avoid tricky issues with parent.frame etc, but we can then leave 
+    # subset.neuronlist to do the rest of the work
+    e <- if(SUBSTITUTE) substitute(subset) else subset
+    r <- eval(e, attr(x,'df'), parent.frame())
+    x <- subset.neuronlist(x, r)
+  }
+  
+  # Handle Colours
+  col.sub <- if(SUBSTITUTE) substitute(col) else col
+  cols <- eval(col.sub, attr(x,'df'), parent.frame())
+  cols=makecols(cols, colpal, length(x))
+  
+  if(is.null(add)){
+    add=c(FALSE, rep(TRUE, length(x)-1))
+  }
+  rval=mapply(plot, x, col=cols, add=add, MoreArgs = list(...))
+  df=attr(x,'df')
+  if(is.null(df)) {
+    keys=names(x)
+    if(is.null(keys)) keys=seq_along(x)
+    df=data.frame(key=keys,stringsAsFactors=FALSE)
+  }
+  df$col=cols
+  attr(rval,'df')=df
+  invisible(rval)
+}
+
+# internal utility function to handle colours for plot(3d).neuronlist
+# see plot3d.neuronlist for details
+# @param nitems Number of items for which colours must be made
+makecols<-function(cols, colpal, nitems) {
   if(!is.character(cols)){
     if(is.null(cols)) {
-      if(is.function(colpal)) colpal=colpal(length(x))
-      cols=colpal[seq(x)]
+      if(is.function(colpal)) colpal=colpal(nitems)
+      cols=colpal[seq_len(nitems)]
     }
-    else if(is.function(cols)) cols=cols(length(x))
+    else if(is.function(cols)) cols=cols(nitems)
     else if(is.numeric(cols)) {
       if(is.function(colpal)) colpal=colpal(max(cols))
       cols=colpal[cols]
@@ -245,39 +493,7 @@ plot3d.neuronlist<-function(x,subset,col=NULL,colpal=rainbow,skipRedraw=200,...)
     }
     else stop("Cannot evaluate col")
   }
-  # Speed up drawing when there are lots of neurons
-  if(is.numeric(skipRedraw)) skipRedraw=ifelse(length(x)>skipRedraw,TRUE,FALSE)
-  if(is.logical(skipRedraw)) {
-    if(par3d()$skipRedraw) skipRedraw=TRUE
-    op=par3d(skipRedraw=skipRedraw)
-    on.exit(par3d(op))
-  }
-  rval=mapply(plot3d,x,col=cols,...)
-  df=attr(x,'df')
-  if(is.null(df)) {
-    keys=names(x)
-    if(is.null(keys)) keys=seq_along(x)
-    df=data.frame(key=keys,stringsAsFactors=FALSE)
-  }
-  df$col=cols
-  attr(rval,'df')=df
-  invisible(rval)
-}
-
-#' @rdname plot3d.neuronlist
-#' @method plot3d character
-#' @S3method plot3d character
-#' @description \code{plot3d.character} is a convenience method intended for
-#'   exploratory work on the command line.
-#' @details plot3d.character will check if options('nat.default.neuronlist') has
-#'   been set and then use x as an identifier to find a neuron in that 
-#'   neuronlist.
-plot3d.character<-function(x, ...) {
-  nl=get(getOption('nat.default.neuronlist', default=stop('Option "nat.default.neuronlist" is not set. See ?nat for details.')))
-  if(!is.neuronlist(nl)) 
-    stop("Please set options(nat.default.neuronlist='myfavneuronlist'). ',
-         'See ?nat for details.")
-  plot3d(nl, pmatch(x, names(nl)), ...)
+  cols
 }
 
 #' Arithmetic for neuron coordinates applied to neuronlists
@@ -318,7 +534,7 @@ plot3d.character<-function(x, ...) {
 #' @description \code{droplevels} Remove redundant factor levels in dataframe 
 #'   attached to neuronlist
 #' @inheritParams base::droplevels.data.frame
-#' @S3method droplevels neuronlist
+#' @export
 #' @name neuronlist-dataframe-methods
 #' @aliases droplevels.neuronlist
 #' @return the attached dataframe with levels dropped (NB \strong{not} the
@@ -334,7 +550,7 @@ droplevels.neuronlist<-function(x, except, ...){
 #' @param data A neuronlist object
 #' @param expr The expression to evaluate
 #' @rdname neuronlist-dataframe-methods
-#' @S3method with neuronlist
+#' @export
 #' @method with neuronlist
 #' @seealso with
 with.neuronlist<-function(data, expr, ...) {
@@ -347,7 +563,7 @@ with.neuronlist<-function(data, expr, ...) {
 #' @param x A neuronlist object
 #' @param ... Further arguments passed to default methods (and usually ignored)
 #' @rdname neuronlist-dataframe-methods
-#' @S3method head neuronlist
+#' @export
 #' @importFrom utils head
 #' @seealso head
 head.neuronlist<-function(x, ...) {
@@ -420,8 +636,10 @@ subset.neuronlist<-function(x, subset, filterfun,
     r <- eval(e, df, parent.frame())
     if(is.function(r)) stop("Use of subset with functions is deprecated. ",
                             "Please use filterfun argument")
-    if(is.logical(r) || is.integer(r) ){
+    if(is.logical(r)){
       r=nx[r & !is.na(r)]
+    } else if(is.numeric(r)){
+      r=nx[na.omit(r)]
     } else if(is.character(r)) {
       # check against names
       missing_names=setdiff(r, nx)
@@ -435,7 +653,7 @@ subset.neuronlist<-function(x, subset, filterfun,
     filter_results=rep(NA, length(r))
     # use for loop because neuronlists are normally large but not long
     for(i in seq_along(r)){
-      tf=try(filterfun(x[[r[i]]]))
+      tf=try(filterfun(x[[r[i]]], ...))
       if(!inherits(tf, 'try-error')) filter_results[i]=tf
     }
     r=r[filter_results]

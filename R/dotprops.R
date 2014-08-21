@@ -1,6 +1,6 @@
 #' dotprops: Neurons as point clouds with tangent vectors (but no connectivity)
 #' @param x Object to be tested/converted
-#' @rdname dotprops
+#' @name dotprops
 #' @export
 is.dotprops<-function(x) inherits(x,"dotprops")
 
@@ -94,7 +94,7 @@ scale.dotprops<-function(x,center=TRUE,scale=TRUE){
 #' @rdname dotprops
 dotprops<-function(x, ...) UseMethod('dotprops')
 
-#' @S3method dotprops character
+#' @export
 #' @rdname dotprops
 dotprops.character <- function(x, ...) {
   fileName <- x
@@ -107,11 +107,11 @@ dotprops.character <- function(x, ...) {
   l
 }
 
-#' @details \code{dotprops.dotprops} will deafult to the original vale of 
+#' @description \code{dotprops.dotprops} will default to the original vale of 
 #'   \code{k} and copy over all attributes that are not set by
 #'   \code{dotprops.default}.
 #' @method dotprops dotprops
-#' @S3method dotprops dotprops
+#' @export
 #' @export
 #' @rdname dotprops
 dotprops.dotprops<-function(x, k=attr(x,'k'), ...) {
@@ -123,7 +123,7 @@ dotprops.dotprops<-function(x, k=attr(x,'k'), ...) {
   y
 }
 
-#' @S3method dotprops im3d
+#' @export
 #' @rdname dotprops
 dotprops.im3d <- function(x, ...) {
   l <- ind2coord(x)
@@ -131,26 +131,34 @@ dotprops.im3d <- function(x, ...) {
   l
 }
 
-#' @S3method dotprops list
+#' @export
 dotprops.list<-function(x, ...) {
   # FIXME - change to an abstract base class for objects with 3d vertices
   # rather than the completely generic list
   dotprops(xyzmatrix(x), ...)
 }
 
-#' @S3method dotprops neuronlist
+#' @description \code{dotprops.neuronlist} will run for every object in the 
+#'   neuronlist using \code{\link{nlapply}}. \code{...} arguments will be passed to 
+#'   \code{nlapply} in addition to the named argument \code{OmitFailures}.
+#' @export
 #' @method dotprops neuronlist
 #' @rdname dotprops
-dotprops.neuronlist<-function(x, ...) {
-  nlapply(x, dotprops, ...)
+#' @inheritParams nlapply
+#' @seealso \code{\link{nlapply}}
+dotprops.neuronlist<-function(x, ..., OmitFailures=NA) {
+  nlapply(x, dotprops, ..., OmitFailures=OmitFailures)
 }
 
-#' @S3method dotprops neuron
+#' @export
 #' @method dotprops neuron
+#' @param resample When finite, a new length to which all segmented edges will
+#'   be resampled. See \code{\link{resample.neuron}}.
 #' @rdname dotprops
-dotprops.neuron<-function(x, Labels=NULL, ...) {
+dotprops.neuron<-function(x, Labels=NULL, resample=NA, ...) {
   if(is.null(Labels) || isTRUE(Labels)) Labels=x$d$Label
   else if(is.logical(labels) && labels==FALSE) Labels=NULL
+  if(is.finite(resample)) x=resample(x, stepsize = resample)
   dotprops(xyzmatrix(x), Labels=Labels, ...)
 }
 
@@ -252,12 +260,20 @@ all.equal.dotprops<-function(target, current, check.attributes=FALSE,
 #' @details Tangent vectors are plotted by \code{segments3d} and centered on the
 #'   relevant point. Points are plotted by \code{points3d}.
 #'   
+#'   \code{color} will be recycled by \code{points3d} and \code{segments3d}. 
+#'   However in the special case that \code{color} has length equal to the 
+#'   number of points in \code{x}, then it will be duplicated before being 
+#'   passed to \code{segments3d} so that the result is that each vector is 
+#'   coloured uniformly according to \code{color} (since segments3d expects 2
+#'   colours for each line segment, blending them if they are different).
 #' @param x A dotprops object
 #' @param scalevecs Factor by which to scale unit vectors (numeric, default: 
 #'   1.0)
 #' @param alpharange Restrict plotting to points with \code{alpha} values in 
 #'   this range to plot (default: null => all points). See 
 #'   \code{\link{dotprops}} for definition of \code{alpha}.
+#' @param color Character or numeric vector specifying colours for 
+#'   points/vectors. See details.
 #' @param PlotPoints,PlotVectors Whether to plot points and/or tangent vectors 
 #'   (logical, default: tangent vectors only)
 #' @param UseAlpha Whether to scale tangent vector length by the value of 
@@ -267,7 +283,6 @@ all.equal.dotprops<-function(target, current, check.attributes=FALSE,
 #' @return invisible list of results of rgl plotting commands
 #' @method plot3d dotprops
 #' @export
-#' @importFrom rgl plot3d
 #' @seealso \code{\link{dotprops}, \link[rgl]{plot3d}, \link[rgl]{points3d}, 
 #'   \link[rgl]{segments3d}}
 #' @examples
@@ -278,21 +293,26 @@ all.equal.dotprops<-function(target, current, check.attributes=FALSE,
 #' clear3d()
 #' plot3d(kcs20[[1]],col='red',lwd=2)
 #' plot3d(kcs20[[2]],col='green',lwd=2)
-plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL,
-                          PlotPoints=FALSE, PlotVectors=TRUE, UseAlpha=FALSE,...){
+plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black', 
+                          PlotPoints=FALSE, PlotVectors=TRUE, UseAlpha=FALSE, ...){
   # rgl's generic plot3d will dispatch on this
   if (!is.null(alpharange))
     x=subset(x,x$alpha<=alpharange[2] & x$alpha>=alpharange[1])
   rlist=list()
-  if(PlotPoints)
-    rlist$points=points3d(x$points,...)
+  if(PlotPoints){
+    rlist$points=points3d(x$points, color=color, ...)
+  }
+    
   if(PlotVectors){
+    if(length(color)>1 && length(color)==nrow(x$points)){
+      color=rep(color,rep.int(2,length(color)))
+    }
     halfvect=x$vect/2*scalevecs
     if(UseAlpha) halfvect=halfvect*x$alpha
     starts=x$points-halfvect
     stops=x$points+halfvect
     interleaved=matrix(t(cbind(starts,stops)),ncol=3,byrow=T)
-    rlist$segments=segments3d(interleaved,...)
+    rlist$segments=segments3d(interleaved, color=color, ...)
   }
   invisible(rlist)
 }
@@ -309,13 +329,15 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL,
 #' @return subsetted dotprops object
 #' @method subset dotprops
 #' @export
-#' @seealso \code{nat.as::prune.dotprops}
+#' @seealso \code{prune.dotprops}
 #' @examples
 #' \dontrun{
 #' s3d=select3d()
 #' dp1=subset(dp,s3d(points))
 #' # special case of previous version
 #' dp2=subset(dp,s3d)
+#' # keep the points that were removed from dp2
+#' dp2.not=subset(dp,Negate(s3d))
 #' stopifnot(all.equal(dp1,dp2))
 #' dp2=subset(dp,alpha>0.5 & s3d(pointd))
 #' dp3=subset(dp,1:10)
@@ -379,7 +401,7 @@ prune.dotprops<-function(x, target, ...){
 }
 
 #' @export
-#' @method prune dotprops
+#' @method prune neuronlist
 #' @rdname prune
 prune.neuronlist<-function(x, target, ...){
   nlapply(x, prune, target=target, ...)

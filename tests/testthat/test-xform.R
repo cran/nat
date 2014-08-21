@@ -60,6 +60,11 @@ test_that("we can mirror using different forms of axis specification", {
 test_that("we can mirror a neuron list", {
   k5=kcs20[1:5]
   expect_equal(mirror(mirror(k5,mirrorAxisSize=0),mirrorAxisSize=0),k5)
+  
+  # some members of a list only
+  expect_equal((m<-mirror(kcs20,subset=1:5,mirrorAxisSize=0))[1:5],
+               mirror(k5,mirrorAxisSize=0))
+  expect_equal(m[6:10],kcs20[6:10])
 })
 
 context('xyzmatrix')
@@ -69,9 +74,21 @@ test_that("can extract xyz coords from a matrix",{
   expect_equivalent(xyzmatrix(mx),mx)
   colnames(mx)=c("X","Y","Z")
   expect_equal(xyzmatrix(mx),mx)
+  mx2=mx
+  colnames(mx2)=c("x","y","z")
+  expect_equal(xyzmatrix(mx2),mx)
   
   df=data.frame(X=1:4,Y=2:5,Z=3:6,W=1)
   expect_equal(xyzmatrix(df),data.matrix(df[,1:3]))
+})
+
+test_that("can replace xyz coords of a matrix",{
+  mx=matrix(1:24,ncol=3)
+  colnames(mx)=c("X","Y","Z")
+  mx2=mx
+  colnames(mx2)=c("x","y","z")
+  
+  expect_equivalent(xyzmatrix(mx)<-xyzmatrix(mx2), mx)
 })
 
 test_that("can extract xyz coords from a neuronlist",{

@@ -1,3 +1,122 @@
+nat 1.5.12
+==========
+* fix bug in updating neuronlistfh objects from remote url
+* nlapply now has options for progress bars and parallelisation by using the 
+  plyr package under the hood.
+* c.neuronlist can now join lists with attached data.frames with different 
+  columns (missing values are filled with NAs). This also applies when some
+  neuronlists have no attached data.frame at all.
+* read.neurons can read neuronlist files from disk
+* cmtk.statistics now has a Verbose argument
+* warn if resmapling a neuron with multiple subtrees that only the main subtree
+  will be kept.
+
+nat 1.5.11
+==========
+* add cmtk.statistics function
+* fix infinite recursion in cmtk.targetvolume
+
+nat 1.5.10
+==========
+* fix: write.neurons subdir argument can accept a column of the attached
+  data.frame (unquoted)
+* fix: write.neuron(s) can add an extension to an output filename that does not
+  have one
+* write.neurons now has an explicit files argument
+* cmtk.targetvolume (and therefore cmtk.reformatx) can accept e.g. 
+  templatebrains (as contained in nat.flybrains package) to specify target 
+  image for registration.
+
+nat 1.5.9
+=========
+* fix transformation of points using compound CMTK registrations
+  (this was broken for CMTK<3.2.2, so a workaround is required).
+* Add cmtk.version function.
+* xyzmatrix can cope with lower case x,y,z for column names
+* doc: fixes in xform
+
+* dev: fix test for winbuilder
+
+nat 1.5.8
+=========
+* Add boundingbox.list method to find boundingbox for neurons, surfaces etc
+* nmapply and nlapply get OmitFailures arguments
+* nlapply also gets a subset argument
+* both arguments are also added to xform/mirror.neuronlist
+* dotprops.neuronlist also gets the OmitFailures argument.
+* fix subset.neuronlist handling of numeric indices
+* minor bug/doc fixes
+
+nat 1.5.7
+=========
+* teach plot3d.neuronlist and friends to plot soma locations.
+* add npop3d function to remove last plotted neurons 
+  (identical to flycircuit::pop3dfc, except that it works with any neurons
+  plotted by plot3d.neuronlist, rather than only those plotted by plot3dfc)
+
+nat 1.5.6
+=========
+* give mirror/xform.neuronlist subset arguments
+* add plot3d.boundingbox
+* give plot(3d).neuronlist a SUBSTITUTE argument that can be used to control
+  non-stadard evaluation. This is useful for people who wish to incoroporate
+  these funcitons inside other user-defined functions. See ?subset.neuronlist
+  for details.
+* fix: write.neurons into subdirs when df=NULL
+
+nat 1.5.5
+==========
+* fix bug in reading swc files with many decimal places specific to R 3.1.0
+* fix bug in header when writing swc files [ajdm]
+* read.im3d now adds file as an attribute to output
+* read.im3d can now add amiramesh files without the standard file extension
+* doc: minor improvements to read.im3d docs and examples
+
+nat 1.5.4
+==========
+* remove internal is.gzip function and depend on nat.utils >=0.4.2
+
+nat 1.5.3
+==========
+* new function pointsinside to determine if points (e.g. neuron) are inside a
+  closedd surface
+* resample.neuron implemented (no support for interpolating widths or multiple
+  subtrees)
+* dotprops.neuron can resample to a consistent segment length
+* consistent return values for as.seglist and seglengths when all subtrees are
+  returned
+* seglengths can return lengths for each edge as well as the sum for each
+  neurite segment (the default)
+* suppress remote tests if flybrain unreachable
+* zenodo DOI for package
+
+nat 1.5.2
+==========
+* add seglengths function for neurons
+* add segmentgraph function to produced a simplified graph representation of
+  neurons with one edge per segment
+* add potential_synapses.dotprops method
+* add as.seglist.neuron method 
+* teach plot3d.hxsurf and subset.hxsurf to accept regexes
+* always drop unused vertices in as.mesh3d.hxsurf
+* fix bug in write.neurons when subdir not specified
+* fix colouring of vectors by plot3d.dotprops
+* dev: switch to roxygygen2 v4
+
+nat 1.5.1
+==========
+* add potential_synapses (from nat.as)
+* surfaces: add subset.hxsurf and as.mesh3d
+* Teach read.im3d to read Vaa3d raw format
+* add plot.neuronlist (for 2d plotting)
+* add c.neuronlist function to combine neuronlists
+* add db argument to plot3d.character
+* make WithNodes=FALSE the default for plot3d.neuronlist
+* make asp=1 the default for image.im3d
+* write.cmtkreg warns if versions specified by cmtkreg attribute and argument
+  differ (to avoid writing old registrations as if they were new or vice versa)
+* fix: prune.neuronlist method signature (and therefore dispatch)
+
 nat 1.4.10
 ==========
 * add function to prune objects by removing points close to or far from another

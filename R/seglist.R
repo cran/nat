@@ -21,16 +21,42 @@ seglist<-function(...) {
 #' @seealso \code{\link{neuron}}
 as.seglist<-function(x, ...) UseMethod('as.seglist')
 
-#' @S3method as.seglist seglist
+#' @export
 as.seglist.seglist<-function(x, ...) x
 
-#' @S3method as.seglist list
+#' @export
 as.seglist.list<-function(x, ...) {
   if(isTRUE(class(x)=='list')) class(x)=c("seglist",class(x))
   x
 }
 
-#' @S3method as.seglist default
+#' @description \code{as.seglist.neuron} will extract the seglist from a neuron,
+#'   optionally extracting all subtrees (\code{all=TRUE}) and (in this case) 
+#'   flattening the list into a single hierarchy when \code{flatten=TRUE}.
+#'   n.b. when \code{all=TRUE} but \code{flatten=FALSE} the result will
+#'   \emph{always} be a list of \code{seglist} objects (even if the neuron has
+#'   only one subtree i.e. is fully connected).
+#' @method as.seglist neuron
+#' @export
+#' @param all Whether to include segments from all subtrees
+#' @param flatten When \code{all=TRUE} flatten the lists of lists into a 
+#'   one-level list.
+#' @rdname seglist
+as.seglist.neuron<-function(x, all=FALSE, flatten=FALSE, ...) {
+  if(!all){
+    # we only want the main tree
+    as.seglist(x$SegList)
+  } else if(is.null(x$SubTrees)){
+    # we want all trees but there is only one
+    if(flatten) x$SegList else list(x$SegList)
+  } else {
+    # nb ensure that everything has class seglist
+    if(flatten) as.seglist(unlist(x$SubTrees, recursive=FALSE))
+    else lapply(x$SubTrees, as.seglist)
+  }
+}
+
+#' @export
 as.seglist.default<-function(x, ...) stop("Not yet implemented!")
 
 #' @description \code{as.seglist.igraph} will convert a fully connected acyclic 
@@ -45,7 +71,7 @@ as.seglist.default<-function(x, ...) stop("Not yet implemented!")
 #' @param Verbose Whether to print progress updates to console (default FALSE)
 #' @return a \code{list} with one entry for each unbranched segment.
 #' @seealso \code{\link{ngraph},\link{igraph}}
-#' @S3method as.seglist igraph
+#' @export
 #' @method as.seglist igraph
 #' @rdname seglist
 as.seglist.igraph<-function(x, origin=NULL, Verbose=FALSE, ...){
@@ -140,9 +166,7 @@ seglist2swc<-function(x, d, RecalculateParents=TRUE, DefaultLabel=2L,
   if(missing(d)){
     if(!is.neuron(x)) stop("Must supply x=neuron or x=SegList and d=SWC data")
     d=x$d
-    if(isTRUE(x$nTrees>1))
-      sl=unlist(x$SubTrees, recursive=FALSE)
-    else sl=x$SegList
+    sl=as.seglist(x, all=TRUE, flatten=TRUE)
   } else {
     sl=x
     # is this a plain SegList or a list of seglists
