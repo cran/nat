@@ -8,7 +8,8 @@
 #'   using the NeuronName field \strong{or} a character vector of names.
 #' @param WithNodes Whether to plot dots for branch and end points
 #' @param WithAllPoints Whether to plot dots for all points in the neuron
-#' @param WithText Whether to label plotted points with their id
+#' @param WithText Whether to label plotted points with their numeric id (see 
+#'   details)
 #' @param PlotSubTrees Whether to plot all sub trees when the neuron is not 
 #'   fully connected.
 #' @param add Whether to add the neuron to existing rgl plot rather than 
@@ -23,6 +24,9 @@
 #'   \code{\link[rgl]{plot3d}} for details.
 #' @seealso \code{\link{plot3d.neuronlist}, \link{plot3d.dotprops}, 
 #'   \link[rgl]{plot3d}}
+#' @details Note that when WithText=TRUE, the numeric identifiers plotted are
+#'   \emph{raw indices} into the \code{x$d} array, \emph{not} the values of the
+#'   \code{PointNo} column.
 #' @examples
 #' # A new plot would have been opened if required
 #' open3d()
@@ -64,17 +68,20 @@ plot3d.neuron<-function(x, WithLine=TRUE, NeuronNames=FALSE, WithNodes=TRUE,
                x$EndPoints[-which(x$EndPoints==x$StartPoint)],
                x$StartPoint)
   NodeCols<-c(rep("red",length(x$BranchPoints)),
-              rep("green",length(x$EndPoints)-1),"purple" )
+              rep("blue",length(x$EndPoints)-1),"purple" )
   
   if(WithNodes){
-    Colour=col
     if(WithAllPoints){
-      if(!WithLine) NodeCols=rep(Colour,nrow(x$d))
-      rglreturnlist[["points"]]=points3d(x$d[,c("X","Y","Z")],color=NodeCols,size=3)
+      SimplePoints=setdiff(seq.int(length.out = nrow(x$d)), NodesOnly)
+      AllPoints=c(NodesOnly, SimplePoints)
+      NodeCols=c(NodeCols, rep(col, length(SimplePoints)))
+      rglreturnlist[["points"]]=points3d(x$d[AllPoints, 
+                                             c("X","Y","Z")], color=NodeCols, size=3)
       if(WithText) # text labels for nodes
-        rglreturnlist[["texts"]]=texts3d(x$d[,c("X","Y","Z")],texts=seq(nrow(x$d)),color=NodeCols,adj=c(0,0.5))
+        rglreturnlist[["texts"]]=texts3d(x$d[AllPoints, c("X","Y","Z")],
+                                         texts=AllPoints, color=NodeCols, adj=c(0,0.5))
     } else {
-      if(!WithLine) NodeCols=rep(Colour,length(NodeCols))
+      if(!WithLine) NodeCols=col
       rglreturnlist[["points"]]=points3d(x$d[NodesOnly,c("X","Y","Z")],color=NodeCols,size=3)
       if(WithText) # text labels for nodes
         rglreturnlist[["texts"]]=texts3d(x$d[NodesOnly,c("X","Y","Z")],texts=NodesOnly,color=NodeCols,adj=c(0,0.5))

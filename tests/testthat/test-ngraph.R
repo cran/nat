@@ -77,13 +77,32 @@ test_that("we can find the path of the spine of a neuron", {
   expect_is(spine <- spine(n), 'neuron')
   spine.expected <- readRDS('testdata/neuron/testCell07PNs1_spine.rds')
   expect_equal(spine, spine.expected)
+  expect_equal(spine(n, LengthOnly = T), 186.0859, tol=1e-4)
+  
+  # check that we get the same result when using start point,
+  # since that is part of result
+  expect_equal(spine(n, UseStartPoint = T), spine.expected)
+  expect_equal(spine(n, UseStartPoint = T, LengthOnly = T), 186.0859, tol=1e-4)
+  
+  # check that can cope with point labels other than 1:n
+  n$d$PointNo=n$d$PointNo+1
+  spine.expected$PointNo=spine.expected$PointNo+1
+  expect_equal(spine, spine.expected)
 })
 
 test_that("setting of graph attributes",{
   gatts=list(name='testneuron',nclass="PN")
-  expect_is(testg <- as.ngraph(testd, graph.attributes = gatts), 'ngraph')
-  expect_equal(get.graph.attribute(testg, name = 'class'), gatts$class)
+  expect_is(testg <- as.ngraph(testd, graph.attributes = gatts, 
+                               vertex.attributes=list(X=testd$X)), 'ngraph')
+  expect_equal(get.graph.attribute(testg, name = 'nclass'), gatts$nclass)
   expect_equal(get.graph.attribute(testg, name = 'name'), gatts$name)
+  # null attributes
+  expect_equal(get.graph.attribute(testg, name = 'rhubarb'), gatts$rhubarb)
+  
+  # vertex attributes
+  expect_equal(get.vertex.attribute(testg, name = 'X'), testd$X)
+  expect_warning(testg <- as.ngraph(testd, graph.attributes = gatts, 
+                               vertex.attributes=list(X=testd$X[-1])))
 })
 
 test_that("graph weights can be calculated and set",{

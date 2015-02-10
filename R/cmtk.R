@@ -65,7 +65,9 @@ cmtk.mat2dof<-function(m, f=NULL, centre=NULL, Transpose=TRUE, version=FALSE){
     cmd=paste(cmd,sep="<",shQuote(inf))
     params=read.table(text=system(cmd,intern=T),sep='\t',comment.char="")[,2]
     if(length(params)!=15) stop("Trouble reading mat2dof response")
-    return(matrix(params,ncol=3,byrow=TRUE))
+    numbers <- matrix(params, ncol=3, byrow=TRUE)
+    rownames(numbers) <- c("xlate", "rotate", "scale", "shear", "center")
+    return(numbers)
   } else {
     cmd=paste(cmd,'--list',shQuote(path.expand(f)),"<",shQuote(inf))
     return(system(cmd)==0)
@@ -79,7 +81,7 @@ cmtk.mat2dof<-function(m, f=NULL, centre=NULL, Transpose=TRUE, version=FALSE){
 #'   An external CMTK installation is required in order to apply CMTK
 #'   registrations. This function attempts to locate the full path to the CMTK
 #'   executable files and can query and set an option.
-#' @details Queries options('nat.cmtk.bindir') if \code{firtsdir} is not 
+#' @details Queries options('nat.cmtk.bindir') if \code{firstdir} is not 
 #'   specified. If that does not contain the appropriate binaries, it will look 
 #'   in the system PATH and then a succession of plausible places until it finds
 #'   something. Setting \code{options(nat.cmtk.bindir=NA)} or passing 
@@ -127,9 +129,12 @@ cmtk.bindir<-function(firstdir=getOption('nat.cmtk.bindir'),
            "\nPlease check value of options('nat.cmtk.bindir')")
   }
   if(is.null(bindir)){
-    cmtktoolpath=Sys.which(cmtktool)
-    if(nchar(cmtktoolpath)>0){
+    if(nzchar(cmtktoolpath<-Sys.which(cmtktool))){
       bindir=dirname(cmtktoolpath)
+    } else if(nzchar(cmtkwrapperpath<-Sys.which("cmtk"))) {
+      # try looking for cmtk wrapper script
+      # e.g. /usr/bin/cmtk => /usr/lib/cmtk/bin
+      bindir=file.path(dirname(dirname(cmtkwrapperpath)), "lib", "cmtk","bin")
     } else {
       # check some plausible locations
       for(d in extradirs){
@@ -214,6 +219,8 @@ cmtk.version<-function(minimum=NULL){
 #' \dontrun{
 #' cmtk.call("reformatx",'--outfile=out.nrrd', floating='floating.nrrd',
 #'   mask=TRUE, target.offset=c(1,2,3), FINAL.ARGS=c('target.nrrd','reg.list'))
+#' # get help for a cmtk tool
+#' system(cmtk.call('reformatx', help=TRUE))
 #' }
 cmtk.call<-function(tool, PROCESSED.ARGS=NULL, ..., FINAL.ARGS=NULL){
   cmd=shQuote(file.path(cmtk.bindir(check=TRUE),tool))
@@ -230,7 +237,7 @@ cmtk.call<-function(tool, PROCESSED.ARGS=NULL, ..., FINAL.ARGS=NULL){
         if(length(arg)!=1) stop("character arguments must have length 1")
         cmd=paste(cmd,cmtkarg,arg)
       } else if(is.logical(arg)){
-        cmd=paste(cmd,cmtkarg)
+        if(isTRUE(arg)) cmd=paste(cmd,cmtkarg)
       } else if(is.numeric(arg)){
         arg=paste(1:3,collapse=',')
         cmd=paste(cmd,cmtkarg,arg)

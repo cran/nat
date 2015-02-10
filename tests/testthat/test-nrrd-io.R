@@ -18,6 +18,16 @@ test_that("is.nrrd works",{
   
   expect_true(is.nrrd(lhmaskfile))
   expect_false(is.nrrd(lhmaskfile, TrustSuffix=TRUE))
+  
+  expect_false(is.nrrd(charToRaw("NRRD00")))
+  expect_true(is.nrrd(charToRaw("NRRD0007")))
+  expect_false(is.nrrd(bytes=charToRaw("NRRD00")))
+  expect_true(is.nrrd(bytes=charToRaw("NRRD0007\n# A comment")))
+  expect_error(is.nrrd(f=LETTERS,bytes=charToRaw("NRRD0007")))
+  
+  # it's more efficient to specify the class, but should still work without
+  expect_equal(getformatreader(origlhmaskfile), 
+               getformatreader(origlhmaskfile, class='im3d'))
 })
 
 test_that("read.nrrd.header works",{

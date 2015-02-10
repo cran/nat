@@ -45,6 +45,21 @@ xform.default<-function(x, reg, na.action=c('warn','none','drop','error'), ...){
   pointst
 }
 
+#' @description \code{xform.character} is designed to work with files on disk.
+#'   Presently it is restricted to images, although other datatypes may be
+#'   supported in future.
+#' @export
+#' @rdname xform
+xform.character<-function(x, reg, ...) {
+  if(!file.exists(x)) stop("file does not exist:", x)
+  fr=getformatreader(x, class = 'im3d')
+  if(is.null(fr))
+    stop("xform currently only operates on image files. ",
+         "See ?xform and ?fileformats for details of acceptable formats.")
+  
+  xformimage(reg, x, ...)
+}
+
 #' @method xform list
 #' @export
 #' @rdname xform
@@ -82,18 +97,31 @@ xform.dotprops<-function(x, reg, FallBackToAffine=TRUE, ...){
 }
 
 #' @method xform neuronlist
+#' @details With \code{xform.neuronlist}, if you want to apply a different 
+#'   registration to each object in the neuronlist \code{x}, then you should use
+#'   \code{VectoriseRegistrations=TRUE}.
 #' @param subset For \code{xform.neuronlist} indices (character/logical/integer)
 #'   that specify a subset of the members of \code{x} to be transformed.
+#' @param VectoriseRegistrations When \code{FALSE}, the default, each element of
+#'   \code{reg} will be applied sequentially to each element of \code{x}. When 
+#'   \code{TRUE}, it is assumed that there is one element of \code{reg} for each
+#'   element of \code{x}.
 #' @inheritParams nlapply
 #' @export
 #' @rdname xform
-xform.neuronlist<-function(x, reg, subset=NULL, ..., OmitFailures=NA){
-  if(length(reg)>1) stop("xform.neuronlist is currently only able to apply",
-                         " a single registration to multiple neurons")
-  # TODO if x is long there would be some performance benefits in chunking
-  # all points from multiple neurons together. I strongly suspect that doing 10
-  # at once would approach a 10x speedup.
-  nlapply(x, FUN=xform, reg=reg, ..., subset=subset, OmitFailures=OmitFailures)
+#' @examples
+#' \dontrun{
+#' # apply reg1 to Cell07PNs[[1]], reg2 to Cell07PNs[[2]] etc
+#' regs=c(reg1, reg2, reg3)
+#' nx=xform(Cell07PNs[1:3], reg=regs, VectoriseRegistrations=TRUE)
+#' }
+xform.neuronlist<-function(x, reg, subset=NULL, ..., OmitFailures=NA,
+                           VectoriseRegistrations=FALSE) {
+  if(VectoriseRegistrations) {
+    nmapply(xform, x, reg=reg, ..., subset=subset, OmitFailures=OmitFailures)
+  } else {
+    nlapply(x, FUN=xform, reg=reg, ..., subset=subset, OmitFailures=OmitFailures)
+  }
 }
 
 #' Get and assign coordinates for classes containing 3d vertex data
@@ -156,7 +184,10 @@ xyzmatrix.hxsurf<-function(x, ...) {
 #' @rdname xyzmatrix
 #' @export
 xyzmatrix.igraph<-function(x, ...){
-  igraph::get.graph.attribute(x, 'xyz')
+  xyz=sapply(c("X","Y","Z"), function(c) igraph::get.vertex.attribute(x, c))
+  if(is.list(xyz) && all(sapply(xyz, is.null)))
+    xyz = NULL
+  xyz
 }
 
 #' @description \code{xyzmatrix<-} assigns xyz elements of neuron or dotprops
@@ -196,7 +227,11 @@ xyzmatrix.igraph<-function(x, ...){
 
 #' @export
 `xyzmatrix<-.igraph`<-function(x, value){
-  igraph::set.graph.attribute(x, 'xyz', value)
+  colnames(value)=c("X","Y","Z")
+  for(col in colnames(value)){
+    x=igraph::set.vertex.attribute(x, col, value=value[,col])
+  }
+  x
 }
 
 #' Mirror 3d object about a given axis, optionally using a warping registration

@@ -77,8 +77,12 @@ im3d<-function(x=numeric(0), dims=NULL, voxdims=NULL, origin=NULL,
 
 #' Convert a suitable object to an im3d object.
 #' 
-#' This is a largely a placeholder function with the expectation that other 
-#' packages may wish to provide suitable methods.
+#' @details At present the only interesting method in \code{nat} is
+#'   \code{as.im3d.matrix} which can be used to convert a matrix of 3D points
+#'   into a 3D volume representation.
+#'   
+#'   Other than that, this is a largely a placeholder function with the
+#'   expectation that other packages may wish to provide suitable methods.
 #' @param x Object to turn into an im3d
 #' @param ... Additional arguments to pass to methods.
 #' @export
@@ -89,6 +93,50 @@ as.im3d <- function(x, ...) UseMethod("as.im3d")
 #' @export
 #' @rdname as.im3d
 as.im3d.im3d <- function(x, ...) x
+
+#' @export
+#' @inheritParams im3d
+#' @rdname as.im3d
+#' @examples
+#' # convert a list of neurons into an image volume
+#' im=as.im3d(xyzmatrix(kcs20), voxdims=c(1, 1, 1), 
+#'   BoundingBox=c(250, 410, 0, 130, 0, 120))
+#' \dontrun{
+#' write.im3d(im, 'kc20volume.nrrd')
+#' }
+as.im3d.matrix<-function(x, voxdims, origin=NULL, BoundingBox=NULL, ...) {
+  if(ncol(x)!=3 || nrow(x)<2) stop("Expects an Nx3 matrix of 3D points!")
+  if(length(voxdims)!=3) stop("voxdims must have length 3")
+  
+  if(is.null(BoundingBox))
+    r=apply(x, 2, range)
+  else r=boundingbox(BoundingBox)
+  
+  if(is.null(origin)) origin=r[1,]
+  else r[1, ]=origin
+  extents=apply(r, 2, diff)
+  dims=ceiling(abs(extents/voxdims))+1
+  emptyim=im3d(dims = dims, voxdims = voxdims, origin=origin)
+  
+  breaks=mapply(function(ps, delta) c(ps[1]-delta/2, ps+delta/2), 
+                attributes(emptyim)[c("x","y","z")], voxdims)
+  i=cut(x[,1], breaks = breaks[[1]], labels = F)
+  j=cut(x[,2], breaks = breaks[[2]], labels = F)
+  k=cut(x[,3], breaks = breaks[[3]], labels = F)
+  t3d=fast3dintegertable(i, j, k, dims[1], dims[2], dims[3])
+  im3d(t3d, voxdims = voxdims, origin=origin, ...)
+}
+
+fast3dintegertable<-function (a, b, c, nlevelsa = max(a), nlevelsb = max(b), 
+                              nlevelsc = max(c)) {
+    nlevelsabc <- nlevelsa * nlevelsb * nlevelsc
+    if (nlevelsabc > .Machine$integer.max) 
+        stop("Number of levels exceeds integer type.")
+    inrow=nlevelsa
+    inslice=nlevelsa*nlevelsb
+    abc <- a + inrow * (b-1) + inslice * (c-1)
+    array(tabulate(abc, nlevelsabc), dim=c(nlevelsa, nlevelsb, nlevelsc))
+}
 
 #' Read/Write calibrated 3D blocks of image data
 #' 
@@ -122,17 +170,11 @@ as.im3d.im3d <- function(x, ...) x
 read.im3d<-function(file, ReadData=TRUE, SimplifyAttributes=FALSE,
                     ReadByteAsRaw=FALSE, ...){
   if(!file.exists(file)) stop("file: ", file, " doesn't exist!")
-  ext=sub(".*(\\.[^.])","\\1",file)
-  x=if(ext%in%c('.nrrd','.nhdr')){
-    read.nrrd(file, ReadData=ReadData, ReadByteAsRaw=ReadByteAsRaw, ...)
-  } else if(ext%in%c(".am",'.amiramesh') || is.amiramesh(file)){
-    if(ReadData) read.im3d.amiramesh(file, ReadByteAsRaw=ReadByteAsRaw, ...)
-    else read.im3d.amiramesh(file, sections=NA, ReadByteAsRaw=ReadByteAsRaw, ...)
-  } else if(is.vaa3draw(file)){
-    read.vaa3draw.im3d(file, ReadData=ReadData, ReadByteAsRaw=ReadByteAsRaw, ...)
-  } else {
-    stop("Unable to read data saved in format: ",ext)
-  }
+  ffs=getformatreader(file, class = 'im3d')
+  if(is.null(ffs))
+    stop("Unable to read data saved in format: ",tools::file_ext(file))
+  
+  x=match.fun(ffs$read)(file, ReadData=ReadData, ReadByteAsRaw=ReadByteAsRaw, ...)
   attr(x,'file')=file
   if(SimplifyAttributes){
     coreattrs=c("BoundingBox",'origin','x','y','z')
@@ -145,22 +187,29 @@ read.im3d<-function(file, ReadData=TRUE, SimplifyAttributes=FALSE,
 
 #' @param x The image data to write (an im3d, or capable of being interpreted as
 #'   such)
+#' @param format Character vector specifying an image format (e.g. "nrrd", 
+#'   "amiramesh"). Optional, since the format will normally be inferred from the
+#'   file extension. See \code{\link{getformatwriter}} for details.
 #' @rdname im3d-io
-#' @seealso \code{\link{write.nrrd}}
+#' @seealso \code{\link{write.nrrd}}, \code{\link{getformatwriter}}
 #' @export
-write.im3d<-function(x, file, ...){
-  ext=sub(".*(\\.[^.])","\\1",file)
-  if(ext%in%c('.nrrd','.nhdr')){
-    write.nrrd(x, file, ...)
-  } else if(ext%in%c(".am",'.amiramesh')){
-    write.amiramesh(x, file, ...)
-  } else {
-    stop("Unable to write data in format: ",ext)
-  }
+write.im3d<-function(x, file, format=NULL, ...){
+  fw=getformatwriter(file=file, format = format, class='im3d')
+  if(is.null(fw))
+    stop("Unable to write data in format: ",tools::file_ext(file))
+  file=fw$file
+  match.fun(fw$write)(x, file=file, ...)
+  invisible(file)
 }
 
-read.im3d.amiramesh<-function(file, ...){
-  d<-read.amiramesh(file, ...)
+is.amiramesh.im3d<-function(f, bytes=NULL){
+  rval=amiratype(f, bytes=bytes)
+  sapply(rval, function(x) isTRUE(x=='uniform.field'))
+}
+
+read.im3d.amiramesh<-function(file, ReadData=TRUE, ...){
+  sections = if(ReadData) NULL else NA
+  d<-read.amiramesh(file, sections=sections, ...)
   
   # Amira does not store the "space origin" separately as is the case for nrrds
   # Have decided that we should always store the origin inferred from the

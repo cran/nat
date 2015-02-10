@@ -6,19 +6,38 @@ test_that("we can query fileformats",{
                c('hxlineset','hxskel'))
   expect_is(fileformats(class='neuron',rval='info'),'matrix')
   
-  expect_is(fw<-getformatwriter(file='test.rds'),'list')
+  expect_is(fw<-getformatwriter(file='test.rds', class='neuron'),'list')
   expect_equal(fw$ext,'.rds')
   expect_equal(fw$read,readRDS)
   expect_equal(fw$write,saveRDS)
   
-  expect_equal(getformatwriter(file='test.am', format='rds')$file,'test.am')
-  expect_equal(getformatwriter(file='test.am', format='rds', ext=NA)$file,'test.rds')
-  expect_equal(getformatwriter(file='test.am', ext='.rds')$ext,'.rds')
+  expect_equal(getformatwriter(file='test.am', format='rds', class='neuron')$file,'test.am')
   
-  expect_error(getformatwriter(file='test.rds', ext='.rhubarb'))
+  expect_equal(getformatwriter(file='test.am', format='rds', ext='.rds', class='neuron')$file,'test.rds')
+  expect_equal(getformatwriter(file='test', format='rds', ext='.rds', class='neuron')$file,'test.rds')
+  
+  expect_equal(getformatwriter(file='test.am', format='rds', ext=NA, class='neuron')$file,'test.am')
+  expect_equal(getformatwriter(file='test.am', format='rds', ext=NULL, class='neuron')$file,'test.am')
+  
+  expect_equal(getformatwriter(file='test', format='rds', ext=NULL, class='neuron')$file,'test.rds')
+  expect_equal(getformatwriter(file='test', format='rds', ext=NA, class='neuron')$file,'test')
+  
+  expect_equal(getformatwriter(file='test.am', ext='.rds', class='neuron')$ext,'.rds')
+  
+  expect_error(getformatwriter(file='test.rds', ext='.rhubarb', class='neuron'))
   
   expect_equal(fileformats(format='hxl', ext='_skel.am', class='neuron'),
                'hxlineset')
+})
+
+test_that("is.swc works", {
+  expect_false(is.swc("testdata/neuron/EBT7R.am"))
+  expect_false(is.swc("testdata/neuron/SequentiallyBranchingTrace.traces"))
+  expect_true(is.swc("testdata/neuron/XT6L2.CNG.swc"))
+  file.copy("testdata/neuron/XT6L2.CNG.swc", tf<-tempfile())
+  on.exit(unlink(tf))
+  expect_true(is.swc(tf))
+  expect_is(read.neuron(tf), 'neuron')
 })
 
 context("neurons reading")
@@ -73,6 +92,11 @@ test_that("we can read neurons in swc format", {
   swc='testdata/neuron/EBT7R.CNG.swc'
   expect_is(n<-read.neuron(swc),'neuron')
   expect_equal(n$NeuronName,'EBT7R.CNG')
+})
+
+test_that("we get an error when trying to read a non-neuron file", {
+  nrrd="testdata/nrrd/LHMask.nrrd"
+  expect_error(read.neuron(nrrd))
 })
 
 test_that("we can set the NeuronName field when reading a file", {
@@ -684,6 +708,35 @@ test_that("we can read hxskel format neurons",{
   
   expect_equal(suppressWarnings(read.neuron(tmpfile)), n,
                fieldsToExclude='NeuronName')
+})
+
+test_that("we can read multiple neurons from a zip archive", {
+  files_to_zip <- c("testdata/neuron/testneuron_am3d.am", "testdata/neuron/testneuron_lineset.am")
+  # swallow extraneous warning
+  expect_warning(neurons <- read.neurons(files_to_zip,
+                                         neuronnames = function(f) tools::file_path_sans_ext(basename(f))),
+                 regexp = "specifies radius")
+  zip_file <- paste0(tempfile(), ".zip")
+  on.exit(unlink(zip_file, recursive=TRUE))
+  zip(zip_file, files_to_zip)
+  expect_warning(zip_neurons <- read.neurons(zip_file, format="zip",
+                                             neuronnames = function(f) tools::file_path_sans_ext(basename(f))),
+                 regexp = "specifies radius")
+  expect_equal(neurons, zip_neurons)
+})
+
+test_that("we can write multiple neurons to a zip archive", {
+  dir.create(td<-tempfile())
+  owd=setwd(td)
+  zip_file <- "test.zip"
+  on.exit(unlink(zip_file))
+  write.neurons(Cell07PNs[1:5], zip_file, format="swc", Force=T, subdir=Glomerulus)
+  nat.utils::zipinfo(zip_file)
+  zip_neurons <- read.neurons(zip_file, format="zip")
+  # fix names and compare
+  names(zip_neurons)=sub("\\.swc","",names(zip_neurons))
+  expect_equivalent(Cell07PNs[1:5], zip_neurons[names(Cell07PNs)[1:5]])
+  setwd(owd)
 })
 
 test_that("we can identify amira hxskel neurons",{

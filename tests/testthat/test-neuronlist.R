@@ -1,5 +1,17 @@
 context("neuronlist")
 
+test_that("as.neuronlist behaves", {
+  n14=Cell07PNs[1:4]
+  df=attr(n14,'df')
+  expect_equal(as.neuronlist(n14, df = df), n14)
+  # check that we can make names null or empty and all OK
+  n14.nonames=n14
+  names(n14.nonames)=NULL
+  expect_equal(as.neuronlist(n14.nonames, df=df), n14)
+  names(n14.nonames)=rep("", length(n14))
+  expect_equal(as.neuronlist(n14.nonames, df=df), n14)
+})
+
 test_that("c.neuronlist behaves", {
   expect_equal(c(Cell07PNs), Cell07PNs)
   
@@ -110,6 +122,9 @@ test_that("nmapply can omit failures",{
                   mirrorAxisSize=c(400,20,Inf)))
   expect_equal(length(nmapply(mirror, kcs20[1:3], mirrorAxis = c("X","Y","Z"),
                        mirrorAxisSize=c(400,20,Inf), OmitFailures=TRUE)), 2)
+  
+  expect_equal(length(nmapply(mirror, kcs20[1:5], mirrorAxis = c("X","Y","Z"),
+                       mirrorAxisSize=c(400,20,Inf), subset=1:3, OmitFailures=TRUE)), 4)
 })
 
 context("neuronlist: plot3d")
@@ -128,4 +143,23 @@ test_that("plot3d.neuronlist can work with pre-substituted colour expressions",{
   }
   expect_error(f())
   expect_is(f(SUBSTITUTE = FALSE), 'list')
+})
+
+
+context("neuronlist: set operations")
+
+test_that("set operations on neuronlists behave as expected", {
+  kcs_setdiff <- kcs20[1:3]
+  kcs_union <- kcs20[1:7]
+  kcs_intersect <- kcs20[4:5]
+  
+  x <- kcs20[1:5]
+  y <- kcs20[4:7]
+  
+  expect_equal(setdiff(x, y), kcs_setdiff)
+  expect_equal(setdiff(x, names(y)), kcs_setdiff)
+  expect_error(setdiff(x, 4:7))
+  
+  expect_equal(union(x, y), kcs_union)
+  expect_equal(intersect(x, y), kcs_intersect)
 })
