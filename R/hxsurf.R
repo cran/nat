@@ -1,10 +1,22 @@
 #' Read Amira surface (aka HxSurface or HyperSurface) files into hxsurf object
 #' 
+#' Note that when \code{RegionChoice="both"} or \code{RegionChoice=c("Inner", 
+#' "Outer")} both polygons in inner and outer regions will be added to named 
+#' regions. To understand the significance of this, consider two adjacent 
+#' regions, A and B, with a shared surface. For the polygons in both A and B, 
+#' Amira will have a patch with (say) InnerRegion A and OuterRegion B. This 
+#' avoids duplication in the file. However, it might be convenient to add these 
+#' polygons to both regions when we read them into R, so that regions A and B in
+#' our R object are both closed surfaces. To achieve this when 
+#' \code{RegionChoice="both"}, \code{read.hxsurf} adds these polygons to region
+#' B (as well as region A) but swaps the order of the vertices defining the
+#' polygon to ensure that the surface directionality is correct.
+#' 
 #' @param filename Character vector defining path to file
 #' @param RegionNames Character vector specifying which regions should be read 
 #'   from file. Default value of \code{NULL} => all regions.
-#' @param RegionChoice Whether the \emph{Inner} or \emph{Outer} material should 
-#'   define the material of the patch.
+#' @param RegionChoice Whether the \emph{Inner} or \emph{Outer} material, or 
+#'   \emph{both}, should define the material of the patch. See details.
 #' @param FallbackRegionCol Colour to set regions when no colour is defined
 #' @param Verbose Print status messages during parsing when \code{TRUE}
 #' @return A list with S3 class hxsurf with elements \itemize{
@@ -12,10 +24,10 @@
 #'   \item{Vertices}{ A data.frame with columns \code{X, Y, Z, PointNo}}
 #'   
 #'   \item{Regions}{ A list with 3 column data.frames specifying triplets of 
-#'   vertices for each region (with reference to \code{PointNo} column in
+#'   vertices for each region (with reference to \code{PointNo} column in 
 #'   \code{Vertices} element)}
 #'   
-#'   \item{RegionList}{ Character vector of region names (should match names of
+#'   \item{RegionList}{ Character vector of region names (should match names of 
 #'   \code{Regions} element)}
 #'   
 #'   \item{RegionColourList}{ Character vector specifying default colour to plot
@@ -27,15 +39,19 @@
 #' @aliases hxsurf
 #' @family amira
 #' @family hxsurf
+#' @examples 
+#' \dontrun{
+#' read.hxsurf("my.surf", RegionChoice="both")
+#' }
 read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
                       FallbackRegionCol="grey",Verbose=FALSE){
   # Check for header confirming file type
   firstLine=readLines(filename,n=1)
   if(!any(grep("#\\s+hypersurface\\s+[0-9.]+\\s+ascii",firstLine,ignore.case=T,perl=T))){
-    warning(paste(filename,"does not appear to be an Amira HyperSurface ASCII file"))
-    return(NULL)
+    stop(filename," does not appear to be an Amira HyperSurface ASCII file!")
   }
-  
+  RegionChoice=match.arg(RegionChoice, c("Inner", "Outer", "both"), several.ok = TRUE)
+  if(RegionChoice[1]=="both") RegionChoice=c("Inner", "Outer")
   t=readLines(filename)
   nLines=length(t)
   if(Verbose) cat(nLines,"lines of text to parse\n")
@@ -68,12 +84,10 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
   PatchEnds=grep("^\\s*}",remainingLines[PatchDefLine:length(remainingLines)],perl=TRUE)+PatchDefLine-1
   if(length(PatchEnds)>nPatches) PatchEnds=PatchEnds[1:nPatches]
   TriangleDeflines<-grep("Triangles",remainingLines)
+  if(length(TriangleDeflines)!=nPatches)
+    stop("Incorrect number of Triangle definition lines in",filename,"\n")
   
   for(i in 1:nPatches){
-    if(!any(TriangleDeflines[i])){
-      warning(paste("Unable to find Triangle number in patch",i,"in",filename,"\n"))
-      return (NULL)
-    }
     if(Verbose) cat("TriangleDefline =",TriangleDeflines[i],"\n")
     PatchHeader<-remainingLines[PatchStarts[i]:TriangleDeflines[i]]
     if(Verbose) cat("PatchHeader is",length(PatchHeader),"lines long\n")
@@ -81,7 +95,7 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="Inner",
     for(RegChoice in RegionChoice) {
       RegionName=getfield(paste(RegChoice,"Region",sep=""),PatchHeader,2)
       nTriangles=as.numeric(getfield("Triangles",PatchHeader,2))
-      if(nTriangles<0 || nTriangles>100000){return(-1)}
+      if(nTriangles<0 || nTriangles>100000) stop("Bad triangle number: ", nTriangles)
       if(Verbose) cat("nTriangles =",nTriangles,"for patch =",i,"\n")
       # Check if we want to load in this region
       if( is.null(RegionNames) || RegionName%in%RegionNames ){
@@ -196,6 +210,18 @@ write.hxsurf <- function(surf, filename) {
 #' @method plot3d hxsurf
 #' @seealso \code{\link{read.hxsurf}}
 #' @family hxsurf
+#' @examples 
+#' plot3d(kcs20)
+#' plot3d(MBL.surf, alpha=0.3)
+#' 
+#' # plot only vertical lobe
+#' clear3d()
+#' plot3d(MBL.surf, materials="VL", alpha=0.3)
+#' 
+#' # everything except vertical lobe
+#' clear3d()
+#' plot3d(MBL.surf, alpha=0.3, 
+#'   materials=grep("VL", MBL.surf$RegionList, value = TRUE, invert = TRUE))
 plot3d.hxsurf<-function(x, materials=NULL, col=NULL, ...){
   # skip so that the scene is updated only once per hxsurf object
   skip <- par3d(skipRedraw = TRUE)
@@ -256,7 +282,8 @@ as.mesh3d.hxsurf<-function(x, Regions=NULL, material=NULL, drop=TRUE, ...){
 #' @param x A dotprops object
 #' @param subset Character vector specifying regions to keep. Interpreted as 
 #'   \code{\link{regex}} if of length 1 and no fixed match.
-#' @param drop Whether to drop unused vertices after subsetting
+#' @param drop Whether to drop unused vertices after subsetting (default:
+#'   \code{TRUE})
 #' @param rval Whether to return a new \code{hxsurf} object or just the names of
 #'   the matching regions
 #' @param ... Additional parameters (currently ignored)
@@ -264,7 +291,16 @@ as.mesh3d.hxsurf<-function(x, Regions=NULL, material=NULL, drop=TRUE, ...){
 #' @method subset hxsurf
 #' @export
 #' @family hxsurf
-subset.hxsurf<-function(x, subset=NULL, drop=FALSE, rval=c("hxsurf","names"), ...){
+#' @examples
+#' plot3d(kcs20)
+#' # plot only vertical lobe
+#' vertical_lobe=subset(MBL.surf, "VL")
+#' plot3d(vertical_lobe, alpha=0.3)
+#' 
+#' # there is also a shortcut for this
+#' clear3d()
+#' plot3d(MBL.surf, "VL", alpha=0.3)
+subset.hxsurf<-function(x, subset=NULL, drop=TRUE, rval=c("hxsurf","names"), ...){
   rval=match.arg(rval)
   if(!is.null(subset)){
     tokeep=integer(0)
@@ -300,6 +336,17 @@ subset.hxsurf<-function(x, subset=NULL, drop=FALSE, rval=c("hxsurf","names"), ..
   }
   x
 }
+
+#' Subset methods for different nat objects
+#' 
+#' These methods enable subsets of some nat objects including neuronlists and 
+#' dotprops objects to be obtained. See the help for each individual method for
+#' details.
+#' 
+#' @name subset
+#' @seealso \code{\link{subset.dotprops}}, \code{\link{subset.hxsurf}}, 
+#'   \code{\link{subset.neuronlist}}
+NULL
 
 #' Find which points of an object are inside a surface
 #' 

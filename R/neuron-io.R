@@ -131,11 +131,27 @@ read.neuron<-function(f, format=NULL, ...){
 #' @examples
 #' \dontrun{
 #' ## Read C. elegans neurons from OpenWorm github repository
-#' vds=paste0("https://raw.githubusercontent.com/openworm/CElegansNeuroML/",
-#'   "103d500e066125688aa7ac5eac7e9b2bb4490561/CElegans/generatedNeuroML/VD",
-#'   1:13,".morph.xml")
-#' vdnl=read.neurons(vds)
+#' vds=paste0("VD", 1:13)
+#' vdurls=paste0("https://raw.githubusercontent.com/openworm/CElegansNeuroML/",
+#'   "103d500e066125688aa7ac5eac7e9b2bb4490561/CElegans/generatedNeuroML/",vds,
+#'   ".morph.xml")
+#' vdnl=read.neurons(vdurls, neuronnames=vds)
 #' plot3d(vdnl)
+#' 
+#' ## The same, but this time add some metadata to neuronlist
+#' # fetch table of worm neurons from wormbase
+#' \dontrun{
+#' library(rvest)
+#' nlurl="http://wormatlas.org/neurons/Individual%20Neurons/Neuronframeset.html"
+#' wormneurons = html_table(html(nlurl), fill=TRUE)[[4]]
+#' vddf=subset(wormneurons, Neuron%in%vds)
+#' rownames(vddf)=vddf$Neuron
+#' # attach metadata to neuronlist
+#' vdnl=read.neurons(vdurls, neuronnames=vds, df=vddf)
+#' # use metadata to plot a subset of neurons
+#' clear3d()
+#' plot3d(vdnl, grepl("P[1-6].app", Lineage))
+#' }
 #' }
 read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
                        nl=NULL, df=NULL, OmitFailures=TRUE, SortOnUpdate=FALSE,
@@ -153,7 +169,13 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
     dbdir=attr(nlfh,'db')@dir
     kfm=attr(nlfh,'keyfilemap')
     paths=structure(file.path(dbdir,kfm),.Names=names(kfm))
-    neuronnames=names(kfm)
+    if(OmitFailures) {
+      fep=file.exists(paths)
+      if(!all(fep)) 
+        warning("There are ", sum(fep), " missing neurons!")
+      paths=paths[fep]
+    }
+    neuronnames=names(paths)
     df=attr(nlfh,'df')
     format='rds'
   }
@@ -557,7 +579,7 @@ write.neuron<-function(n, file=NULL, dir=NULL, format=NULL, ext=NULL,
                        Force=FALSE, MakeDir=TRUE, ...){
   if(is.dotprops(n)){
     # we only know how to save dotprops objects in R's internal format
-    format='rds'
+    format=if(is.null(format)) 'rds' else match.arg(format, c("swc", "rds"))
     if(is.null(file)) {
       file=basename(attr(n,"file"))
       if(is.null(file))
@@ -603,6 +625,10 @@ write.neuron<-function(n, file=NULL, dir=NULL, format=NULL, ext=NULL,
 
 # write neuron to SWC file
 write.neuron.swc<-function(x, file, ...){
+  if(is.dotprops(x)) {
+    return(write.dotprops.swc(x, file, ...))
+  }
+  # assume we have a neuron
   our_col_names<-c("PointNo","Label","X","Y","Z","W","Parent")
   if(!all(our_col_names%in%colnames(x$d))) stop("Some columns are missing!")
   df=x$d[,our_col_names]
@@ -617,6 +643,16 @@ write.neuron.swc<-function(x, file, ...){
   cat("#", colnames(df), "\n", file=file, append=TRUE)
   write.table(df, file, col.names=F, row.names=F, append=TRUE, ...)
 }
+
+write.dotprops.swc<-function(x, file, ...) {
+  df=dotprops2swc(x, ...)
+  writeLines(c("# SWC dotprops format", "# Created by nat::write.dotprops.swc",
+               "# see http://research.mssm.edu/cnic/swc.html"),
+             con=file)
+  cat("#", colnames(df), "\n", file=file, append=TRUE)
+  write.table(df, file, col.names=F, row.names=F, append=TRUE)
+}
+
 
 #' Write neurons from a neuronlist object to individual files, or a zip archive
 #' 

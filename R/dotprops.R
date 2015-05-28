@@ -215,6 +215,29 @@ dotprops.default<-function(x, k=NULL, Labels=NULL, na.rm=FALSE, ...){
   return(as.dotprops(rlist))
 }
 
+# internal function to convert a dotprops object to SWC
+# representation.
+dotprops2swc<-function(x, label=0L, veclength=1, radius=0) {
+  
+  # compute segments based on points and tangent vectors
+  halfvect=x$vect/2*veclength
+  starts=x$points-halfvect
+  stops=x$points+halfvect
+  interleaved=matrix(t(cbind(starts,stops)),ncol=3,byrow=T)
+  
+  n=nrow(x$points)
+  # make sequence of parent ids
+  # should look like -1, 1, -1, 2, -1, 3 ...
+  parents=as.vector(t(cbind(-1L, 
+                            seq.int(from=1L, length.out=n, by=2L)
+  )))
+  df=data.frame(PointNo=seq.int(2*n), Label=label)
+  df[,c("X","Y","Z")]=interleaved
+  df$R=radius
+  df$Parent=parents
+  df
+}
+
 #' all.equal method tailored to dotprops objects
 #' 
 #' @details This method is required because the direction vectors are computed
@@ -336,6 +359,14 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black',
 #' stopifnot(all.equal(dp1,dp2))
 #' dp2=subset(dp,alpha>0.5 & s3d(pointd))
 #' dp3=subset(dp,1:10)
+#' 
+#' ## subset each dotprops object in a whole neuronlist
+#' plot3d(kcs20)
+#' s3d=select3d()
+#' kcs20.partial = nlapply(kcs20, subset, s3d)
+#' clear3d()
+#' plot3d(kcs20.partial, col='red')
+#' plot3d(kcs20, col='grey')
 #' }
 subset.dotprops<-function(x, subset, ...){
   e <- substitute(subset)

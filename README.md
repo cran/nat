@@ -1,6 +1,9 @@
 # nat: NeuroAnatomy Toolbox
-[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.10171-blue.svg)](http://dx.doi.org/10.5281/zenodo.10171) [![Build Status](https://travis-ci.org/jefferis/nat.svg)](https://travis-ci.org/jefferis/nat) 
-[![Coverage Status](https://img.shields.io/coveralls/jefferis/nat.svg?style=flat)](https://coveralls.io/r/jefferis/nat?branch=master)
+[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.10171-blue.svg)](http://dx.doi.org/10.5281/zenodo.10171) 
+[![Release Version](https://img.shields.io/github/release/jefferis/nat.svg)](https://github.com/jefferis/nat/releases/latest) 
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/nat)](http://cran.r-project.org/web/packages/nat) 
+[![Build Status](https://travis-ci.org/jefferis/nat.svg?branch=master)](https://travis-ci.org/jefferis/nat) 
+[![Coverage Status](https://coveralls.io/repos/jefferis/nat/badge.svg?branch=master)](https://coveralls.io/r/jefferis/nat?branch=master)
 
 An R package for the (3D) visualisation and analysis of biological image data, especially tracings of
 single neurons. See [nat.examples](https://github.com/jefferis/nat.examples) and [frulhns](https://github.com/jefferis/frulhns) for sample code.
@@ -58,7 +61,13 @@ with(attr(rval,'df'), legend('center', legend = unique(Glomerulus), fill=unique(
 
 * http://www.r-project.org
 
-3D visualisation is provided by the rgl package based on OpenGL. On Mac OS X you must have a copy of XQuartz, the X11 window manager, installed. This is no longer a default install since Mac OS X 10.8, but the OS should offer to it install it for you if something tries to use it. Alternatively you can get it directly from https://xquartz.macosforge.org/landing/
+3D visualisation is provided by the rgl package based on OpenGL. On Mac OS X if 
+you use RStudio or R from the terminal, you must have a copy of XQuartz, the X11
+window manager, installed. This is no longer a default install since Mac OS X 
+10.8, but the OS should offer to it install it for you if something tries to use
+it. Alternatively you can get it directly from 
+https://xquartz.macosforge.org/landing/. This page is also linked from the 
+[Download R for (Mac) OS X](http://cran.r-project.org/bin/macosx/) page.
 
 If you want to apply non-rigid registrations calculated by the Computational Morphometry Toolkit (CMTK) you will need to install that separately – see section *External Dependencies* below. 
 

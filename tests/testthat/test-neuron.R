@@ -101,6 +101,29 @@ test_that("we can set NeuronName when there is no input file",{
   expect_equal(n$NeuronName, "MySpecialNeuron")
 })
 
+context("all.equal.neuron")
+test_that("all.equal.neuron behaves", {
+  n=Cell07PNs[[1]]
+  expect_equal(n, Cell07PNs[[1]])
+  n2=n
+  n2$NeuronName=NULL
+  expect_match(all.equal(n, n2, fieldsToCheck = NA), "missing")
+  expect_equal(n, n2, CheckSharedFieldsOnly=TRUE)
+})
+
+context("neuron arithmetic")
+
+test_that("operator equivalence for neuron arithmetic", {
+  nn=Cell07PNs[1:2]
+  expect_equal(nn*0.5, nn/2)
+  expect_equal(nn+(-2), nn-2)
+  expect_equal(-nn, nn*-1)
+  n=Cell07PNs[[1]]
+  expect_equal(n*0.5, n/2)
+  expect_equal(n+(-2), n-2)
+  expect_equal(-n, n*-1)
+})
+
 context("neuron plotting")
 
 test_that("we can plot neurons in 2D", {
@@ -114,7 +137,7 @@ test_that("we can plot neurons in 2D", {
 })
 
 test_that("we can plot neurons in 3D", {
-  plottedLines <- plot3d(Cell07PNs[[1]])$lines
+  plottedLines <- plot3d(Cell07PNs[[1]], soma=3, WithText=T, WithNodes = T, WithAllPoints=T)$lines
   expect_more_than(plottedLines, 0)
 })
 
@@ -182,4 +205,6 @@ test_that("we can normalise an SWC data block", {
 
   expect_equal(normalise_swc(Cell07PNs[[1]]$d[-2], defaultValue=list(Label=2L)),
                d)
+  expect_error(normalise_swc(Cell07PNs[[1]]$d[-2], ifMissing = 'stop'),
+               regexp = "Columns.*are missing")
 })

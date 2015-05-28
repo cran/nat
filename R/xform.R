@@ -36,11 +36,11 @@ xform.default<-function(x, reg, na.action=c('warn','none','drop','error'), ...){
   naPoints = is.na(pointst[, 1])
   if (any(naPoints)) {
     if (na.action == "drop") 
-      pointst = pointst[!naPoints, ]
+      pointst = pointst[!naPoints, , drop=FALSE]
     else if (na.action == "warn") 
-      warning("There were ", length(naPoints), " that could not be transformed")
+      warning("There were ", sum(naPoints), " points that could not be transformed")
     else if (na.action == "error") 
-      stop("There were ", length(naPoints), " that could not be transformed")
+      stop("There were ", sum(naPoints), " points that could not be transformed")
   }
   pointst
 }
@@ -72,6 +72,10 @@ xform.list<-function(x, reg, FallBackToAffine=TRUE, na.action='error', ...){
   xyzmatrix(x)<-pointst
   x
 }
+
+#' @export
+#' @rdname xform
+xform.shape3d<-xform.list
 
 #' @method xform dotprops
 #' @export
@@ -126,25 +130,17 @@ xform.neuronlist<-function(x, reg, subset=NULL, ..., OmitFailures=NA,
 
 #' Get and assign coordinates for classes containing 3d vertex data
 #' 
+#' \code{xyzmatrix} gets coordinates from objects containing 3d vertex data
 #' @param x object containing 3d coordinates
 #' @param ... additional arguments passed to methods
-#' @return Nx3 matrix containing 3d coordinates
+#' @return For \code{xyzmatrix}: Nx3 matrix containing 3d coordinates
 #' @export
+#' @examples 
+#' # see all available methods for different classes
+#' methods('xyzmatrix')
+#' # ... and for the assignment method
+#' methods('xyzmatrix<-')
 xyzmatrix<-function(x, ...) UseMethod("xyzmatrix")
-
-
-#' @method xyzmatrix neuronlist
-#' @export
-xyzmatrix.neuronlist<-function(x, ...) {
-  coords=lapply(x, xyzmatrix, ...)
-  do.call(rbind, coords)
-}
-
-#' @export
-xyzmatrix.neuron<-function(x, ...) x$d[,c("X","Y","Z")]
-
-#' @export
-xyzmatrix.dotprops<-function(x, ...) x$points
 
 #' @method xyzmatrix default
 #' @param y,z separate y and z coordinates
@@ -162,7 +158,7 @@ xyzmatrix.default<-function(x, y=NULL, z=NULL, ...) {
   } else if(is.data.frame(x) || is.matrix(x)){
     if(ncol(x)>3){
       matched_cols=match(xyzn, toupper(colnames(x)))
-      if(!any(is.na(matched_cols))) x=x[,matched_cols]
+      if(!any(is.na(matched_cols))) x=x[, matched_cols, drop=FALSE]
       else stop("Ambiguous column names. Unable to retrieve XYZ data")
     } else if(ncol(x)<3) stop("Must have 3 columns of XYZ data")
   }
@@ -172,6 +168,22 @@ xyzmatrix.default<-function(x, y=NULL, z=NULL, ...) {
 }
 
 #' @export
+#' @rdname xyzmatrix
+xyzmatrix.neuron<-function(x, ...) data.matrix(x$d[,c("X","Y","Z")])
+
+#' @export
+#' @rdname xyzmatrix
+xyzmatrix.neuronlist<-function(x, ...) {
+  coords=lapply(x, xyzmatrix, ...)
+  do.call(rbind, coords)
+}
+
+#' @export
+#' @rdname xyzmatrix
+xyzmatrix.dotprops<-function(x, ...) x$points
+
+#' @export
+#' @rdname xyzmatrix
 xyzmatrix.hxsurf<-function(x, ...) {
   # quick function that gives a generic way to extract coords from 
   # classes that we care about and returns a matrix
@@ -190,12 +202,18 @@ xyzmatrix.igraph<-function(x, ...){
   xyz
 }
 
+#' @rdname xyzmatrix
+#' @export
+xyzmatrix.mesh3d<-function(x, ...){
+  cbind(x$vb[1, ]/x$vb[4, ], x$vb[2, ]/x$vb[4, ], x$vb[3, ]/x$vb[4, ])
+}
+
 #' @description \code{xyzmatrix<-} assigns xyz elements of neuron or dotprops
 #'   object and can also handle matrix like objects with columns named X, Y, Z
 #'   or x, y, z.
 #' @usage xyzmatrix(x) <- value
 #' @param value Nx3 matrix specifying new xyz coords
-#' @return Original object with modified coords
+#' @return For \code{xyzmatrix<-}: Original object with modified coords
 #' @export
 #' @seealso \code{\link{xyzmatrix}}
 #' @rdname xyzmatrix
@@ -210,9 +228,9 @@ xyzmatrix.igraph<-function(x, ...){
 #' @export
 `xyzmatrix<-.default`<-function(x, value){
   xyzn=c("X","Y","Z")
-  if(is.neuron(x)) x$d[,xyzn]=value
-  else if(is.dotprops(x)) x$points[,xyzn]=value
-  else if(!any(is.na(matched_cols<-match(xyzn, toupper(colnames(x)))))) {
+  if(ncol(x)==3) {
+    x[,]=value
+  } else if(!any(is.na(matched_cols<-match(xyzn, toupper(colnames(x)))))) {
     x[,matched_cols]=value
   }
   else stop("Not a neuron or dotprops object or a matrix-like object with XYZ colnames")
@@ -220,17 +238,40 @@ xyzmatrix.igraph<-function(x, ...){
 }
 
 #' @export
+#' @rdname xyzmatrix
+`xyzmatrix<-.neuron`<-function(x, value){
+  x$d[,c("X","Y","Z")]=value
+  x
+}
+
+#' @export
+#' @rdname xyzmatrix
+`xyzmatrix<-.dotprops`<-function(x, value){
+  x$points[,c("X","Y","Z")]=value
+  x
+}
+
+#' @export
+#' @rdname xyzmatrix
 `xyzmatrix<-.hxsurf`<-function(x, value){
   x$Vertices[,1:3]=value
   x
 }
 
 #' @export
+#' @rdname xyzmatrix
 `xyzmatrix<-.igraph`<-function(x, value){
   colnames(value)=c("X","Y","Z")
   for(col in colnames(value)){
     x=igraph::set.vertex.attribute(x, col, value=value[,col])
   }
+  x
+}
+
+#' @export
+#' @rdname xyzmatrix
+`xyzmatrix<-.shape3d`<-function(x, value){
+  x$vb=t(cbind(value, 1))
   x
 }
 
@@ -253,13 +294,16 @@ xyzmatrix.igraph<-function(x, ...){
 #' @export
 #' @seealso \code{\link{xform}, \link{boundingbox}}
 #' @examples
+#' nopen3d()
 #' x=Cell07PNs[[1]]
 #' plot3d(x,col='red')
 #' plot3d(mirror(x,168),col='green')
-#' plot3d(mirror(x,168,transform='flip'),col='blue')
+#' 
+#' # also works with dotprops objects
+#' clear3d()
 #' y=kcs20[[1]]
-#' plot3d(mirror(y,564.2532,transform='flip'),col='red')
-#' plot3d(mirror(y,mirrorAxisSize=564.2532,transform='flip'),col='blue')
+#' plot3d(y, col='red')
+#' plot3d(mirror(y,mirrorAxisSize=564.2532,transform='flip'), col='green')
 mirror<-function(x, ...) UseMethod('mirror')
 
 #' @param mirrorAxisSize The bounding box of the axis to mirror
@@ -297,6 +341,7 @@ mirror.default<-function(x, mirrorAxisSize, mirrorAxis=c("X","Y","Z"),
     xform(x, reg=warpfile, transformtype=transform, ...)
   }
 }
+
 #' @method mirror neuronlist
 #' @param subset For \code{mirror.neuronlist} indices
 #'   (character/logical/integer) that specify a subset of the members of
