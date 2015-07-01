@@ -5,7 +5,7 @@
 \alias{read.hxsurf}
 \title{Read Amira surface (aka HxSurface or HyperSurface) files into hxsurf object}
 \usage{
-read.hxsurf(filename, RegionNames = NULL, RegionChoice = "Inner",
+read.hxsurf(filename, RegionNames = NULL, RegionChoice = "both",
   FallbackRegionCol = "grey", Verbose = FALSE)
 }
 \arguments{
@@ -15,7 +15,8 @@ read.hxsurf(filename, RegionNames = NULL, RegionChoice = "Inner",
 from file. Default value of \code{NULL} => all regions.}
 
 \item{RegionChoice}{Whether the \emph{Inner} or \emph{Outer} material, or
-\emph{both}, should define the material of the patch. See details.}
+\emph{both} (default), should define the material of the patch. See
+details.}
 
 \item{FallbackRegionCol}{Colour to set regions when no colour is defined}
 
@@ -39,17 +40,25 @@ A list with S3 class hxsurf with elements \itemize{
   }
 }
 \description{
-Note that when \code{RegionChoice="both"} or \code{RegionChoice=c("Inner",
-"Outer")} both polygons in inner and outer regions will be added to named
-regions. To understand the significance of this, consider two adjacent
-regions, A and B, with a shared surface. For the polygons in both A and B,
-Amira will have a patch with (say) InnerRegion A and OuterRegion B. This
-avoids duplication in the file. However, it might be convenient to add these
-polygons to both regions when we read them into R, so that regions A and B in
-our R object are both closed surfaces. To achieve this when
-\code{RegionChoice="both"}, \code{read.hxsurf} adds these polygons to region
-B (as well as region A) but swaps the order of the vertices defining the
-polygon to ensure that the surface directionality is correct.
+Read Amira surface (aka HxSurface or HyperSurface) files into hxsurf object
+}
+\details{
+Note that when \code{RegionChoice="both"} or
+  \code{RegionChoice=c("Inner", "Outer")} both polygons in inner and outer
+  regions will be added to named regions. To understand the significance of
+  this, consider two adjacent regions, A and B, with a shared surface. For
+  the polygons in both A and B, Amira will have a patch with (say)
+  InnerRegion A and OuterRegion B. This avoids duplication in the file.
+  However, it might be convenient to add these polygons to both regions when
+  we read them into R, so that regions A and B in our R object are both
+  closed surfaces. To achieve this when \code{RegionChoice="both"},
+  \code{read.hxsurf} adds these polygons to region B (as well as region A)
+  but swaps the order of the vertices defining the polygon to ensure that the
+  surface directionality is correct.
+
+  As a rule of thumb, stick with \code{RegionChoice="both"}. If you get more
+  regions than you wanted, then try switching to \code{RegionChoice="Inner"}
+  or \code{RegionChoice="Outer"}.
 }
 \examples{
 \dontrun{

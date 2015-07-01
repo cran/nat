@@ -27,7 +27,9 @@ See details.}
 \item{OmitFailures}{Omit failures (when TRUE) or leave an NA value in the
 list}
 
-\item{SortOnUpdate}{Sort the neuronlist when update adds new neurons}
+\item{SortOnUpdate}{When \code{nl!=NULL} the resultant neuronlist will be
+sorted so that neurons are ordered according to the value of the
+\code{paths} argument.}
 
 \item{...}{Additional arguements to passed to read.neuron methods}
 }
@@ -90,7 +92,17 @@ plot3d(vdnl, grepl("P[1-6].app", Lineage))
 \seealso{
 \code{\link{read.neuron}}
 
-Other neuronlist: \code{\link{as.neuronlistfh}},
+Other neuronlist: \code{\link{*.neuronlist}},
+  \code{\link{+.neuronlist}}, \code{\link{-.neuronlist}},
+  \code{\link{/.neuronlist}}; \code{\link{[.neuronlist}},
+  \code{\link{[<-.neuronlist}}, \code{\link{droplevels}},
+  \code{\link{droplevels.neuronlist}}, \code{\link{head}},
+  \code{\link{head.neuronlist}},
+  \code{\link{neuronlist-dataframe-methods}},
+  \code{\link{neuronlist-dataframe-methods}},
+  \code{\link{tail}}, \code{\link{tail.neuronlist}},
+  \code{\link{with}}, \code{\link{with.neuronlist}};
+  \code{\link{as.neuronlistfh}},
   \code{\link{as.neuronlistfh.neuronlist}},
   \code{\link{is.neuronlistfh}},
   \code{\link{neuronlistfh}}, \code{\link{neuronlistfh}};

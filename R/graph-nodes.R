@@ -7,7 +7,7 @@
 #'   available). Set to FALSE when this is not desired.
 #' @param exclude.isolated Do not count isolated vertices as root points 
 #'   (default)
-#' @import igraph
+#' @importFrom igraph V degree get.vertex.attribute
 graph.nodes<-function(x, type=c('root','end','branch'), original.ids='label',
                       exclude.isolated=TRUE){
   type=match.arg(type)
@@ -15,13 +15,14 @@ graph.nodes<-function(x, type=c('root','end','branch'), original.ids='label',
     stop("Cannot establish root points for undirected graph")
   
   # root points are those without incoming edges
-  vertex_ids = if(type=='root') igraph::V(x)[igraph::degree(x,mode='in')==0]
-  else if(type=='end') igraph::V(x)[igraph::degree(x)==1]
-  else if(type=='branch') igraph::V(x)[igraph::degree(x)>2]
+  selected = if(type=='root') degree(x,mode='in')==0
+  else if(type=='end') degree(x)==1
+  else if(type=='branch') degree(x)>2
   
+  vertex_ids=which(selected)
   if(type=='root' && exclude.isolated) {
     # only include vertex_ids with connections
-    vertex_ids=vertex_ids[igraph::degree(x,vertex_ids)>0]
+    vertex_ids=vertex_ids[degree(x,vertex_ids)>0]
   }
   
   if(is.character(original.ids))
@@ -84,7 +85,7 @@ branchpoints.default<-function(x, ...) branchpoints(as.ngraph(x), ...)
 branchpoints.neuron<-function(x, subtrees=1, ...){
   if(isTRUE(subtrees==1)) return(x$BranchPoints)
   nTrees=ifelse(is.null(x$nTrees),1,x$nTrees)
-  if(any(subtrees>x$nTrees)) stop("neuron only has ",nTrees," subtrees")
+  if(any(subtrees>nTrees)) stop("neuron only has ",nTrees," subtrees")
   else lapply(x$SubTrees[subtrees],
               function(x) branchpoints(as.ngraph(x)))
 }
@@ -104,7 +105,7 @@ endpoints<-function (x, ...) UseMethod("endpoints")
 endpoints.neuron<-function(x, subtrees=1, ...){
   if(isTRUE(subtrees==1)) return(endpoints=x$EndPoints)
   nTrees=ifelse(is.null(x$nTrees),1,x$nTrees)
-  if(any(subtrees>x$nTrees)) stop("neuron only has ",nTrees," subtrees")
+  if(any(subtrees>nTrees)) stop("neuron only has ",nTrees," subtrees")
   else lapply(x$SubTrees[subtrees],
               function(x) endpoints(as.ngraph(x)))
 }

@@ -30,7 +30,8 @@ Convert a suitable object to an im3d object.
 \details{
 At present the only interesting method in \code{nat} is
   \code{as.im3d.matrix} which can be used to convert a matrix of 3D points
-  into a 3D volume representation.
+  into a 3D volume representation. \code{\link{ind2coord}} can be used to do
+  the reverse: convert a set of 3D coords to an \code{im3d} volume.
 
   Other than that, this is a largely a placeholder function with the
   expectation that other packages may wish to provide suitable methods.
@@ -44,21 +45,22 @@ write.im3d(im, 'kc20volume.nrrd')
 }
 }
 \seealso{
-im3d
+\code{\link{im3d}}, \code{\link{ind2coord}}
 
 Other im3d: \code{\link{boundingbox}},
   \code{\link{boundingbox.character}},
   \code{\link{boundingbox.default}},
   \code{\link{boundingbox.im3d}},
   \code{\link{boundingbox.list}},
+  \code{\link{boundingbox.shape3d}},
   \code{\link{boundingbox<-}}; \code{\link{ijkpos}},
   \code{\link{im3d-coords}}, \code{\link{xyzpos}};
   \code{\link{im3d-io}}, \code{\link{read.im3d}},
   \code{\link{write.im3d}}; \code{\link{im3d}};
   \code{\link{imexpand.grid}}; \code{\link{imslice}};
-  \code{\link{origin}}; \code{\link{projection}};
-  \code{\link{threshold}}, \code{\link{threshold.im3d}};
-  \code{\link{unmask}}; \code{\link{voxdims}},
-  \code{\link{voxdims.default}}
+  \code{\link{is.im3d}}; \code{\link{origin}};
+  \code{\link{projection}}; \code{\link{threshold}},
+  \code{\link{threshold.im3d}}; \code{\link{unmask}};
+  \code{\link{voxdims}}, \code{\link{voxdims.default}}
 }
 

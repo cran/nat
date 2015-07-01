@@ -1,10 +1,12 @@
-context("im3d")
+context("im3d io")
 
 test_that("we can read im3d files",{
   expect_is(d<-read.im3d("testdata/nrrd/LHMask.nrrd"),'im3d')
   expect_is(d,'array')
   expect_true(is.integer(d))
   expect_equal(sum(d!=0), 28669)
+  
+  expect_equal(read.im3d("testdata/nrrd/LHMask.nhdr"), d)
   
   expect_is(d0<-read.im3d("testdata/nrrd/LHMask.nrrd", ReadData=FALSE),'im3d')
   expect_equal(dim(d0), dim(d))
@@ -31,6 +33,12 @@ test_that("we can read im3d files",{
   expect_error(read.im3d(v3drawfile2ch), "im3d is restricted to 3D")
   expect_equal(x<-read.im3d(v3drawfile2ch, chan=1), y<-read.im3d(v3drawfile1ch))
   expect_equal(x[,,1], read.im3d(v3drawfile2chslice)[,,1])
+  
+  # nb we can't test for strict equality because read.im3d.vaa3draw adds a
+  # boundingbox in this case whereas read.nrrd does not
+  expect_equal(dim(read.im3d('testdata/v3draw/L1DS1_crop_straight_crop_ch1.nhdr')),
+               dim(y))
+  
   # check that we can read metadata only
   expect_equal(boundingbox(read.im3d(v3drawfile1ch, ReadData = F)), 
                boundingbox(x))
@@ -38,15 +46,28 @@ test_that("we can read im3d files",{
 
 test_that("round trip test for im3d is successful",{
   expect_is(d<-read.im3d("testdata/nrrd/LHMask.nrrd"),'im3d')
-  tf=tempfile(fileext='.nrrd')
-  on.exit(unlink(tf))
+  dir.create(td<-tempfile())
+  tf=tempfile(tmpdir = td, fileext='.nrrd')
+  on.exit(unlink(td, recursive = TRUE))
   
   write.im3d(d, tf, dtype='byte')
   expect_is(d2<-read.im3d(tf),'im3d')
   expect_equal(d2, d, tol=1e-6)
   tf2=tempfile(fileext='.rhubarb')
   expect_error(write.im3d(d, tf2))
+  
+  tf3=tempfile(tmpdir = td, fileext='.nhdr')
+  # also check detached nrrd
+  expect_is(write.im3d(d, tf3, dtype='byte'), 'character')
+  expect_equal(d3<-read.im3d(tf3), d, tol=1e-6)
+  expect_true(file.exists(sub("\\.nhdr$",".raw.gz",tf3)))
+  
+  # check nrrd header fields as well in detail
+  h1=attr(d,'header')
+  expect_equal(attr(d3,'header')[names(h1)], h1[names(h1)], tol=1e-6)
 })
+
+context("im3d")
 
 test_that("we can set bounding box",{
   z=im3d(,BoundingBox=c(0,1,0,2,0,4), dims=c(2,3,4))

@@ -34,7 +34,7 @@
 #'   closer to the root (soma) of the neuron.
 #' @param vertexlabels Integer labels for graph - the edge list is specified 
 #'   using these labels.
-#' @param xyz 3D coordinates of vertices (optional, Nx3 matrix, or Nx4 matrix
+#' @param xyz 3D coordinates of vertices (optional, Nx3 matrix, or Nx4 matrix 
 #'   when 4th column is assumed to be diameter)
 #' @param diam Diameter of neuron at each vertex (optional)
 #' @param weights Logical value indicating whether edge weights defined by the 
@@ -44,13 +44,14 @@
 #' @param vertex.attributes,graph.attributes List of named attributes to be 
 #'   added to the graph. The elements of \code{vertex.attributes} must be 
 #'   vectors whose length is compatible with the number of elements in the 
-#'   graph. See \code{\link[igraph]{attributes}} for details.
+#'   graph. See \code{\link[igraph]{set.vertex.attribute}} for details.
 #' @return an \code{igraph} object with additional class \code{ngraph}, having a
 #'   vertex for each entry in vertexlabels, each vertex having a \code{label} 
 #'   attribute. All vertices are included whether connected or not.
 #' @family neuron
-#' @seealso \code{\link{igraph}}, \code{\link[igraph]{attributes}}
+#' @seealso \code{\link{igraph}}, \code{\link[igraph]{set.vertex.attribute}}
 #' @export
+#' @importFrom igraph V<-
 #' @examples
 #' g=as.ngraph(Cell07PNs[[1]])
 #' library(igraph)
@@ -127,12 +128,13 @@ as.ngraph.neuron<-function(x, directed=TRUE, method=c('swc','seglist'), ...){
   }
 }
 
+#' @importFrom igraph as.undirected as.directed
 as.ngraph.igraph<-function(x, directed=TRUE, root, mode=c('out','in'), ...){
   if(inherits(x,'ngraph'))
-    if(is.directed(x)==directed) return(x)
+    if(igraph::is.directed(x)==directed) return(x)
   
-  if(is.directed(x) && !directed) x=as.undirected(x, ...)
-  else if(!is.directed(x) && directed) x=as.directed.usingroot(x, root, mode=mode, ...)
+  if(igraph::is.directed(x) && !directed) x=as.undirected(x, ...)
+  else if(!igraph::is.directed(x) && directed) x=as.directed.usingroot(x, root, mode=mode, ...)
   
   if(!inherits(x,'ngraph')){
     class(x)=c("ngraph",class(x))
@@ -143,8 +145,9 @@ as.ngraph.igraph<-function(x, directed=TRUE, root, mode=c('out','in'), ...){
 as.directed.usingroot<-function(g, root, mode=c('out','in')){
   mode=match.arg(mode)
   # make a directed graph _keeping any attributes_
-  if(igraph::is.directed(g))
-    dg=igraph::as.directed(g,mode='arbitrary')
+  if(!igraph::is.directed(g))
+    dg=igraph::as.directed(g, mode='arbitrary')
+  else dg=g
   dfs=igraph::graph.dfs(dg, root, unreachable=FALSE, dist=TRUE, neimode='all')
   el=igraph::get.edgelist(dg)
   
@@ -171,7 +174,7 @@ as.directed.usingroot<-function(g, root, mode=c('out','in')){
 #' Compute the longest path (aka spine or backbone) of a neuron
 #' 
 #' @param n the neuron to consider.
-#' @param UseStartPoint Whether to use the StartPoint of the neuron (often the
+#' @param UseStartPoint Whether to use the StartPoint of the neuron (often the 
 #'   soma) as the starting point of the returned spine.
 #' @param SpatialWeights logical indicating whether spatial distances (default) 
 #'   should be used to weight segments instead of weighting each edge equally.
@@ -190,6 +193,8 @@ as.directed.usingroot<-function(g, root, mode=c('out','in')){
 #' spine(Cell07PNs[[1]], LengthOnly=TRUE)
 #' # same result since StartPoint is included in longest path
 #' spine(Cell07PNs[[1]], LengthOnly=TRUE, UseStartPoint=TRUE)
+#' @importFrom igraph shortest.paths get.shortest.paths diameter get.diameter
+#'   delete.vertices
 spine <- function(n, UseStartPoint=FALSE, SpatialWeights=TRUE, LengthOnly=FALSE) {
   ng <- as.ngraph(n, weights=SpatialWeights)
   if(UseStartPoint) {
@@ -225,6 +230,7 @@ spine <- function(n, UseStartPoint=FALSE, SpatialWeights=TRUE, LengthOnly=FALSE)
 #' @return \code{igraph} object containing only nodes of neuron keeping original
 #'   labels (\code{x$d$PointNo} => \code{V(g)$label}) and vertex indices 
 #'   (\code{1:nrow(x$d)} => \code{V(g)$vid)}.
+#'   @importFrom igraph graph.empty add.edges
 segmentgraph<-function(x, weights=TRUE, exclude.isolated=FALSE, include.xyz=FALSE){
   g=graph.empty()
   pointnos=x$d$PointNo

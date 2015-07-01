@@ -1,20 +1,27 @@
-#' Read nrrd file into 3d array in memory
+#' Read nrrd file into an array in memory
 #' 
-#' @details ReadByteAsRaw=unsigned (the default) only reads unsigned byte data 
-#'   as a raw array. This saves quite a bit of space and still allows data to be
-#'   used for logical indexing.
+#' @details \code{read.nrrd} reads data into a raw array. If you wish to 
+#'   generate a \code{\link{im3d}} object that includes spatial calibration (but
+#'   is limited to representing 3d data) then you should use
+#'   \code{\link{read.im3d}}.
+#'   
+#'   ReadByteAsRaw=unsigned (the default) only reads unsigned byte data as a raw
+#'   array. This saves quite a bit of space and still allows data to be used for
+#'   logical indexing.
 #' @param file Path to a nrrd (or a connection for \code{read.nrrd.header})
 #' @param origin Add a user specified origin (x,y,z) to the returned object
-#' @param ReadData When FALSE just return attributes (e.g. voxel size)
+#' @param ReadData When FALSE just return attributes (i.e. the nrrd header)
 #' @param AttachFullHeader Include the full nrrd header as an attribute of the 
-#'   returned object (default FALSE)
+#'   returned object (default TRUE)
 #' @param ReadByteAsRaw Either a character vector or a logical vector specifying
 #'   when R should read 8 bit data as an R \code{raw} vector rather than 
 #'   \code{integer} vector.
 #' @param Verbose Status messages while reading
-#' @return a 3D data array with attributes compatible with gjdens objects
+#' @return An \code{array} object, optionally with attributes from the nrrd 
+#'   header.
 #' @export
-read.nrrd<-function(file, origin=NULL, ReadData=TRUE, AttachFullHeader=!ReadData,
+#' @seealso \code{\link{write.nrrd}}, \code{\link{read.im3d}}
+read.nrrd<-function(file, origin=NULL, ReadData=TRUE, AttachFullHeader=TRUE,
                     Verbose=FALSE, ReadByteAsRaw=c("unsigned","all","none")){
   if(is.logical(ReadByteAsRaw))
     ReadByteAsRaw=ifelse(ReadByteAsRaw, 'all', 'none')
@@ -47,6 +54,9 @@ read.nrrd<-function(file, origin=NULL, ReadData=TRUE, AttachFullHeader=!ReadData
     if(length(datafiles)!=1) stop("Can currently only handle exactly one datafile")
     close(fc)
     fc=file(datafiles,open='rb')
+    if(!is.null(h$lineskip)) {
+      readLines(fc, n=h$lineskip)
+    }
     file=datafiles
   }
   dataLength=prod(h$sizes)
@@ -57,6 +67,13 @@ read.nrrd<-function(file, origin=NULL, ReadData=TRUE, AttachFullHeader=!ReadData
   if(ReadData){
     if(enc%in%c("gz","gzip")) fc=gzcon(fc)
     if(enc%in%c("gz","gzip",'raw')){
+      if(!is.null(h$byteskip)){
+        if(isSeekable(fc)) {
+          seek(fc, where=h$byteskip, origin='current')
+        } else {
+          readBin(fc, what='raw', n=h$byteskip)
+        }
+      }
       d=readBin(fc,what=dataTypes$what[i],n=dataLength,size=dataTypes$size[i],
                  signed=dataTypes$signed[i],endian=endian)
     } else if(enc%in%c("ascii","txt","text")){
@@ -74,12 +91,7 @@ read.nrrd<-function(file, origin=NULL, ReadData=TRUE, AttachFullHeader=!ReadData
     attr(d,'datablock')$datastartpos=seek(fc)
   }
   if(AttachFullHeader) attr(d,"header")=h
-  voxdims<-nrrd.voxdims(h,ReturnAbsoluteDims = FALSE)
-  if(any(is.na(voxdims))){
-    # missing pixel size info, so just return
-    return(d)
-  }
-  im3d(d, dims=h$sizes, voxdims=voxdims, origin=h[['space origin']])
+  return(d)
 }
 
 #' Read the (text) header of a NRRD format file
@@ -203,10 +215,12 @@ is.nrrd<-function(f=NULL, bytes=NULL, ReturnVersion=FALSE, TrustSuffix=FALSE){
   TRUE
 }
 
-nrrd.datafiles<-function(nhdr,ReturnAbsPath=TRUE){
+nrrd.datafiles<-function(nhdr, full.names=TRUE){
   if(!is.list(nhdr)){
     # we need to read in the nrrd header
-    if(length(nhdr)>1) return(sapply(nhdr,nrrd.datafiles))
+    if(length(nhdr)>1) 
+      return(sapply(nhdr, nrrd.datafiles, full.names=full.names, 
+                    simplify = FALSE))
     if(!is.nrrd(nhdr)) stop("This is not a nrrd file")
     h=read.nrrd.header(nhdr)
   } else h=nhdr
@@ -230,12 +244,12 @@ nrrd.datafiles<-function(nhdr,ReturnAbsPath=TRUE){
     if(length(firstlineparts)==5) attr(dfs,'subdim')=as.integer(firstlineparts[5])
   } else dfs=h$datafile
   
-  if(ReturnAbsPath){
+  if(full.names){
     # check if paths begin with /
     relpaths=substring(dfs,1,1)!="/"
     if(any(relpaths)){
       nhdrpath=attr(h,"path")
-      if(is.null(nhdrpath) && ReturnAbsPath)
+      if(is.null(nhdrpath))
         stop("Unable to identify nrrd header file location to return absolute path to data files")
       dfs[relpaths]=file.path(dirname(nhdrpath),dfs[relpaths])
     }
@@ -245,12 +259,15 @@ nrrd.datafiles<-function(nhdr,ReturnAbsPath=TRUE){
 
 #' Return voxel dimensions (by default absolute voxel dimensions)
 #' 
-#' @details NB Can handle off diagonal terms in space directions matrix, BUT
+#' @details NB Can handle off diagonal terms in space directions matrix, BUT 
 #'   assumes that space direction vectors are orthogonal.
+#'   
+#'   Will produce a warning if no valid dimensions can be found.
 #' @param file path to nrrd/nhdr file or a list containing a nrrd header
 #' @param ReturnAbsoluteDims Defaults to returning absolute value of dims even 
 #'   if there are any negative space directions
-#' @return voxel dimensions as numeric vector
+#' @return numeric vector of voxel dimensions (\code{NA_real_} when missing) of
+#'   length equal to the image dimension.
 #' @author jefferis
 #' @seealso \code{\link{read.nrrd.header}}
 #' @export
@@ -265,7 +282,7 @@ nrrd.voxdims<-function(file, ReturnAbsoluteDims=TRUE){
     voxdims=h[["spacings"]]
   } else {
     warning("Unable to find voxel dimensions in nrrd: ",file)
-    voxdims=rep(NA,h$dimension)
+    voxdims=rep(NA_real_,h$dimension)
   }
   
   # Sometimes get -ve space dirs, take abs if requested
@@ -273,78 +290,238 @@ nrrd.voxdims<-function(file, ReturnAbsoluteDims=TRUE){
   else voxdims
 }
 
-#' Write a 3d array to a NRRD file
+#' Write data and metadata to NRRD file or create a detached NRRD (nhdr) file.
 #' 
-#' Produces a lattice format file i.e. one with a regular x,y,z grid
-#' @param x A 3d data array
-#' @param file Character string naming a file
+#' @description \code{write.nrrd} writes an array, vector or im3d object to a 
+#'   NRRD file. When \code{x} is an \code{im3d} object, appropriate spatial 
+#'   calibration fields are added to the header.
+#'   
+#' @section Detached NRRDs: NRRD files can be written in \emph{detached} format 
+#'   (see \url{http://teem.sourceforge.net/nrrd/format.html#detached}) in which 
+#'   a text \bold{nhdr} file is used to described the contents of a separate 
+#'   (usually binary) data file. This means that the nhdr file can be inspected 
+#'   and edited with a text editor, while the datablock can be in a completely 
+#'   raw format that can be opened even by programs that do not understand the 
+#'   NRRD format. Furthermore detached NRRD header files can be written to 
+#'   accompany non-NRRD image data so that it can be opened by nrrd readers.
+#'   
+#'   If \code{file} has extension \code{.nhdr} \emph{or} \code{datafile} is 
+#'   non-NULL, then \code{write.nrrd} will write a separate datafile. If 
+#'   \code{datafile} is set, then it is interpeted as specifying a path relative
+#'   to the \bold{nhdr} file. If \code{datafile} is not specified then default 
+#'   filenames will be chosen according to the encoding following the 
+#'   conventions of the teem library:
+#'   
+#'   \itemize{
+#'   
+#'   \item raw \code{'<nhdrstem>.raw'}
+#'   
+#'   \item gzip \code{'<nhdrstem>.raw.gz'}
+#'   
+#'   \item text \code{'<nhdrstem>.ascii'}
+#'   
+#'   }
+#' @section Data file paths: When a detached NRRD is written, the 
+#'   \code{datafile} can be specified either as \emph{relative} or 
+#'   \emph{absolute} path. Relative paths are strongly recommended - the best 
+#'   place is right next to the datafile. Relative paths are always specified 
+#'   with respect to the location of the \bold{nhdr} file.
+#'   
+#'   The \code{datafile} argument is not processed by \code{write.nrrd} so it is
+#'   up to the caller to decide whether a relative or absolute path will be 
+#'   used.
+#'   
+#'   For \code{write.nrrd.header.for.file} if \code{outfile} is not specified 
+#'   then the nhdr file will be placed next to the original image stack and the 
+#'   \code{datafile} field will therefore just be \code{basename(infile)}. If 
+#'   outfile is specified explicitly, then \code{datafile} will be set to the 
+#'   full path in the \code{infile} argument. Therefore if you wish to specify 
+#'   \code{outfile}, you \emph{must} set the current working directory (using 
+#'   \code{setwd}) to the location in which \code{outfile} will be written to 
+#'   ensure that the path to the datafile is correct. A future TODO would add 
+#'   the ability to convert an absolute datafile path to a relaive one (by
+#'   finding the common path between datafile and nhdr folders).
+#'   
+#' @section Header: For \code{write.nrrd}, arguments \code{enc}, \code{dtype}, 
+#'   and \code{endian} along with the dimensions of the input (\code{x}) will 
+#'   override the corresponding NRRD header fields from any supplied 
+#'   \code{header} argument. See 
+#'   \url{http://teem.sourceforge.net/nrrd/format.html} for details of the NRRD 
+#'   fields.
+#'   
+#' @param x Data to write as an \code{array}, \code{vector} or 
+#'   \code{\link{im3d}} object.
+#' @param file Character string naming an output file (a detached nrrd header 
+#'   when \code{file} has extension 'nhdr').
 #' @param enc One of three supported nrrd encodings ("gzip", "raw", "text")
 #' @param dtype The data type to write. One of "float","byte", "short", 
 #'   "ushort", "int", "double"
 #' @param endian One of "big" or "little". Defaults to \code{.Platform$endian}.
+#' @param header List containing fields of nrrd header - see \emph{Header} 
+#'   section.
+#' @param datafile Optional name of separate file into which data should be 
+#'   written (see details).
 #' @export
 #' @seealso \code{\link{read.nrrd}, \link{.Platform}}
 write.nrrd<-function(x, file, enc=c("gzip","raw","text"),
                      dtype=c("float","byte", "short", "ushort", "int", "double"),
-                     endian=.Platform$endian){
+                     header=attr(x,'header'), endian=.Platform$endian,
+                     datafile=NULL){
+  ## handle core arguments
   enc=match.arg(enc)
   endian=match.arg(endian, c('big','little'))
   dtype=match.arg(dtype)
-
-  nrrdDataTypes=structure(c("uint8","uint16","int16","int32","float","double"),
-                          names=c("byte", "ushort", "short", "int", "float", "double"))
-  
+  nrrdDataTypes=c(byte="uint8",ushort="uint16",short="int16",int="int32",
+                  float="float",double="double")
   nrrdDataType=nrrdDataTypes[dtype]
   if(is.na(nrrdDataType))
     stop("Unable to write nrrd file for data type: ",dtype)
   
-  cat("NRRD0004\n", file=file)
-  cat("encoding: ", enc,"\ntype: ", nrrdDataType, "\n",sep="", append=TRUE, 
-      file=file)
-  cat("dimension: ", length(dim(x)), "\nsizes: ", paste(dim(x), collapse=" "),
-      "\n",sep="", append=TRUE, file=file)
-  voxdims=voxdims(x)
-  if(length(voxdims) && !(any(is.na(voxdims)))) {
-    origin=attr(x,'origin')
-    if(length(origin)){
-      # we need to write out as space origin + space directions
-      nrrdvec=function(x) sprintf("(%s)",paste(x,collapse=","))
-      cat("space dimension:", length(dim(x)), "\n", file=file, append=TRUE)
-      cat("space origin:", nrrdvec(origin),"\n", file=file, append=TRUE)
-      cat("space directions:",
-          nrrdvec(c(voxdims[1], 0, 0)),
-          nrrdvec(c(0, voxdims[2], 0)),
-          nrrdvec(c(0, 0, voxdims[3])),
-          '\n', file=file, append=TRUE)
-    } else {
-      cat("spacings:", voxdims,"\n", file=file, append=TRUE)
-    }
+  ## is this a detached nrrd
+  ext=tools::file_ext(file)
+  if(ext=='nhdr' && is.null(datafile)){
+    # these are the extensions used by unu
+    dext=switch(enc, raw='.raw', gzip='.raw.gz', text='.ascii')
+    # NB we will put the datafile next to the nhdr file
+    datafile=paste0(basename(tools::file_path_sans_ext(file)), dext)
   }
   
-  if(!is.list(x)) d=x else d=x$estimate
+  ## set up core header fields
+  goodmodes=c("logical", "numeric", "character", "raw")
+  h=list(type=nrrdDataType, encoding=enc, endian=endian)
+  if(is.array(x) || is.im3d(x)) {
+    h$dimension=length(dim(x))
+    h$sizes=dim(x)
+  } else if(mode(x) %in% goodmodes) {
+    h$dimension=1
+    h$sizes=length(x)
+  } else {
+    stop("write.nrrd only accepts arrays/matrices (including im3d) and vectors",
+         " of mode: ", paste(goodmodes, collapse = " "))
+  }
   
-  # Find data type and size for amira
-  dtype=match.arg(dtype)	
+  # Find data type and size for nrrd
   dtypesize<-c(4,1,2,2,4,8)[which(dtype==c("float","byte", "short","ushort", 
                                            "int", "double"))]
   # Set the data mode which will be used in the as.vector call at the
   # moment that the binary data is written out.
   if(dtype%in%c("byte","short","ushort","int")) dmode="integer"
   if(dtype%in%c("float","double")) dmode="numeric"
-  # record byte ordering if necessary
-  if(enc!='text' && dtypesize>1)
-    cat("endian: ", endian,"\n", sep="", file=file, append=TRUE)
-  # Single blank line terminates header
-  cat("\n", file=file, append=TRUE)
+  
+  if(is.im3d(x)) {
+    im3dh=im3d2nrrdheader(x)
+    new_fields=setdiff(names(im3dh), names(h))
+    h[new_fields]=im3dh[new_fields]
+  }
+  if(!is.null(header)) {
+    new_fields=setdiff(names(header), names(h))
+    h[new_fields]=header[new_fields]
+  }
+  
+  # remove encoding field if not required before writing
+  if(h$encoding=='text' || dtypesize==1) h$endian=NULL
+  
+  # process datafile as last field in header
+  h$datafile=datafile
+
+  write.nrrd.header(h, file)
+  
+  # set things up for detached nrrd or regular nrrd
+  if(is.null(datafile)) {
+    # regular nrrd, append to file containing header
+    fmode='ab'
+  } else {
+    # detached nrrd, (over)write separate datafile
+    fmode='wb'
+    # set working dir to location of nhdr to simplify interpretation of datafile
+    owd=setwd(dirname(file))
+    file=datafile
+    on.exit(setwd(owd), add = TRUE)
+  }
+  
+  # nothing to write, so assume we just wanted to write the header
+  if(length(x)==0) 
+    return(invisible(NULL))
   
   if(enc=='text'){
-    write(as.vector(d,mode=dmode),ncolumns=1,file=file,append=TRUE)
+    write(as.vector(x,mode=dmode),ncolumns=1,file=file,append=fmode=='ab')
   } else {
-    if(enc=="gzip") fc=gzfile(file,"ab")
-    else fc=file(file,open="ab") # ie append, bin mode
-    writeBin(as.vector(d, mode=dmode), fc, size=dtypesize, endian=endian)
+    fc=ifelse(enc=="gzip", gzfile, file)(file, open=fmode)
+    writeBin(as.vector(x, mode=dmode), fc, size=dtypesize, endian=endian)
     close(fc)
   }
+}
+
+#' @description \code{write.nrrd.header} writes a nrrd header file.
+#' @export
+#' @rdname write.nrrd
+write.nrrd.header <- function (header, file) {
+  # helper function
+  nrrdvec=function(x) sprintf("(%s)",paste(x,collapse=","))
+  cat("NRRD0004\n", file=file)
+  for(n in names(header)) {
+    f=header[[n]]
+    # special handling for a couple of fields
+    if(n=='space origin' ) {
+      f=nrrdvec(f)
+    } else if(n=='space directions') {
+      f=apply(f, 1, nrrdvec)
+    }
+    if(length(f)>1) f=paste(f, collapse = " ")
+    cat(paste0(n, ": ", f ,"\n"), file=file, append=TRUE)
+  }
+  # Single blank line terminates header
+  cat("\n", file=file, append=TRUE)
+}
+
+#' @description \code{write.nrrd.header.for.file} makes a detached NRRD
+#'   (\bold{nhdr}) file that points at another image file on disk, making it
+#'   NRRD compatible. This can be a convenient way to make NRRD inputs for other
+#'   tools e.g. CMTK and also allows the same data block to pointed to by
+#'   different nhdr files with different spatial calibration.
+#' @rdname write.nrrd
+#' @param infile,outfile Path to input and output file for 
+#'   \code{write.nrrd.header.for.file}. If \code{outfile} is \code{NULL} (the
+#'   default) then it will be set to \code{<infilestem.nhdr>}.
+#' @export
+write.nrrd.header.for.file<-function(infile, outfile=NULL) {
+  if(is.null(outfile)){
+    outfile=paste0(tools::file_path_sans_ext(infile),".nhdr")
+    datafile=basename(infile)
+  } else {
+    datafile=infile
+  }
+    
+  x=read.im3d(infile, ReadData = FALSE)
+  if(!is.null(dd<-attr(x,'dataDef'))){
+    if(dd$HxType!='raw')
+      stop("only raw format Amiramesh files are nrrd compatible!")
+    if(nrow(dd)>1)
+      stop("I only accept Amiramesh files with one data block")
+    write.nrrd(x, outfile, enc = 'raw', dtype = dd$SimpleType, endian = dd$endian, 
+               datafile = datafile, header=list(lineskip=dd$LineOffsets))
+  } else if(!is.null(nh<-attr(x,'header'))) {
+    # assume that we are dealing with a nrrd
+    # skip 1 extra line because of terminating blank line
+    nh$lineskip=length(attr(nh,"headertext"))+1
+    nh$datafile=datafile
+    write.nrrd.header(header = nh, file = outfile)
+  } else {
+    stop("I don't know how to make a detached nrrd for this image type")
+  }
+  outfile
+}
+
+# internal function to make key spatial nrrd header fields from im3d object
+im3d2nrrdheader<-function(x) {
+  if(!is.im3d(x)) stop("x is not an im3d object!")
+  h=list(dimension=length(dim(x)), sizes=dim(x))
+  # for im3d assume that space dimension is same as array dimension
+  h$`space dimension`=length(dim(x))
+  # nb not origin(x) since that will return (0,0,0) if missing
+  h$`space origin`=attr(x, 'origin')
+  h$`space directions`=diag(voxdims(x))
+  h
 }
 
 .standardNrrdType<-function(type){

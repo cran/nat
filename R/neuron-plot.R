@@ -211,10 +211,14 @@ pan3d <- function(button) {
 #'   points)
 #' @param WithAllPoints whether points should be drawn for all points in neuron.
 #' @param WithText whether to label plotted points with their id.
+#' @param soma Whether to plot a circle at neuron's origin representing the 
+#'   soma. Either a logical value or a numeric indicating the radius (default 
+#'   \code{FALSE}). When \code{soma=TRUE} the radius is hard coded to 2.
 #' @param PlotAxes the axes for the plot.
 #' @param axes whether axes should be drawn.
 #' @param asp the \code{y/x} aspect ratio, see \code{\link{plot.window}}.
-#' @param main the title for the plot.
+#' @param main the title for the plot
+#' @param sub sub title for the plot
 #' @param xlim limits for the horizontal axis (see also boundingbox)
 #' @param ylim limits for the vertical axis (see also boundingbox)
 #' @param AxisDirections the directions for the axes. By default, R uses the 
@@ -244,10 +248,14 @@ pan3d <- function(button) {
 #' plot(Cell07PNs[[3]], PlotAxes="YZ")
 #' # Just plot the end points for the fourth example neuron
 #' plot(Cell07PNs[[4]], WithNodes=FALSE)
+#' # Plot with soma (of default radius)
+#' plot(Cell07PNs[[4]], WithNodes=FALSE, soma=TRUE)
+#' # Plot with soma of defined radius
+#' plot(Cell07PNs[[4]], WithNodes=FALSE, soma=1.25)
 plot.neuron <- function(x, WithLine=TRUE, WithNodes=TRUE, WithAllPoints=FALSE,
-                        WithText=FALSE,
+                        WithText=FALSE, soma=FALSE,
                         PlotAxes=c("XY", "YZ", "XZ", "ZY"), axes=TRUE, asp=1,
-                        main=x$NeuronName, xlim=NULL, ylim=NULL,
+                        main=x$NeuronName, sub=NULL, xlim=NULL, ylim=NULL,
                         AxisDirections=c(1,-1,1), add=FALSE, col=NULL,
                         PointAlpha=1, tck=NA, lwd=par("lwd"), 
                         boundingbox=NULL, ...) {
@@ -282,7 +290,7 @@ plot.neuron <- function(x, WithLine=TRUE, WithNodes=TRUE, WithAllPoints=FALSE,
     # We are setting up the plot, so we need to find limits for axes 
     # (inverting y axis if necessary due to differing handedness)
     if(is.null(boundingbox))
-      boundingbox=boundingbox(x)
+      boundingbox=boundingbox(x, na.rm=TRUE)
     colnames(boundingbox)=c("X","Y","Z")
     myxlims <- boundingbox[,PlotAxes[1]]
     myylims <- boundingbox[,PlotAxes[2]]
@@ -298,7 +306,7 @@ plot.neuron <- function(x, WithLine=TRUE, WithNodes=TRUE, WithAllPoints=FALSE,
     }
     
     plot(PlottedPoints[,PlotAxes],col=mycols,pch=20,xlim=myxlims,ylim=myylims,
-            main=main,asp=asp,axes=F,tck=tck,...)
+            main=main,sub=sub,asp=asp,axes=F,tck=tck,...)
     # Draw the axes and surrounding box
     if(axes) {
       box()
@@ -327,7 +335,17 @@ plot.neuron <- function(x, WithLine=TRUE, WithNodes=TRUE, WithAllPoints=FALSE,
       lines(x$d[LinesToPlot,PlotAxes],col=thisCol,lwd=lwd)
     }
   }
-    
+  
+  somarad=2
+  if(is.numeric(soma)) {
+    somarad=soma
+    soma=TRUE
+  }
+  if(soma){
+    somapos=x$d[x$StartPoint,PlotAxes]
+    symbols(somapos[[1]], somapos[[2]], circles = somarad, inches = F, add=T,
+            bg=ifelse(is.null(col[1]), 1, col[1]), fg=NA)
+  }
   invisible(PlottedPoints)
 }
 

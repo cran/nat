@@ -1,5 +1,5 @@
 context("ngraph class")
-library(igraph)
+library(igraph, warn.conflicts = FALSE)
 
 # make a very simple neuron
 # 1 2 3b 4 5
@@ -60,9 +60,15 @@ test_that("equivalence of seglist and swc methods for as.ngraph.neuron",{
   expect_true(graph.isomorphic(g1,g3))
   expect_true(graph.isomorphic(g1s,g3s))
   
-  expect_equal(g1,g1s)
-  expect_equal(g2,g2s)
-  expect_equal(g3,g3s)
+  myidentical_graph<-function(target, current, ...){
+    old_igraph = package_version(igraph::igraph.version())<'1.0'
+    if(old_igraph) isTRUE(all.equal(target, current, ...))
+    else igraph::identical_graphs(target, current)
+  }
+  
+  expect_true(myidentical_graph(g1,g1s))
+  expect_true(myidentical_graph(g2,g2s))
+  expect_true(myidentical_graph(g3,g3s))
 })
 
 test_that("we can find the length of the spine of a neuron", {
@@ -127,4 +133,11 @@ test_that("we can find the segmentgraph of a neuron",{
     
   expect_equal(E(sg)$weight, c(2, 2, 1))
   expect_true(graph.isomorphic(segmentgraph(testn, weights=FALSE), sg))
+})
+
+
+test_that("as.ngraph can convert undirected graph into an ngraph object",{
+  g1=as.ngraph(testd)
+  expect_is(g2<-as.ngraph(as.undirected(g1), root = rootpoints(g1)), 'ngraph')
+  expect_true(graph.isomorphic(g1,g2))
 })

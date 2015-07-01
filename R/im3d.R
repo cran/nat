@@ -75,18 +75,25 @@ im3d<-function(x=numeric(0), dims=NULL, voxdims=NULL, origin=NULL,
   x
 }
 
+#' Test if an object is of class im3d
+#' @param x Object to test
+#' @return logical
+#' @family im3d
+is.im3d<-function(x) inherits(x, 'im3d')
+
 #' Convert a suitable object to an im3d object.
 #' 
-#' @details At present the only interesting method in \code{nat} is
-#'   \code{as.im3d.matrix} which can be used to convert a matrix of 3D points
-#'   into a 3D volume representation.
+#' @details At present the only interesting method in \code{nat} is 
+#'   \code{as.im3d.matrix} which can be used to convert a matrix of 3D points 
+#'   into a 3D volume representation. \code{\link{ind2coord}} can be used to do 
+#'   the reverse: convert a set of 3D coords to an \code{im3d} volume.
 #'   
-#'   Other than that, this is a largely a placeholder function with the
+#'   Other than that, this is a largely a placeholder function with the 
 #'   expectation that other packages may wish to provide suitable methods.
 #' @param x Object to turn into an im3d
 #' @param ... Additional arguments to pass to methods.
 #' @export
-#' @seealso im3d
+#' @seealso \code{\link{im3d}}, \code{\link{ind2coord}}
 #' @family im3d
 as.im3d <- function(x, ...) UseMethod("as.im3d")
 
@@ -225,6 +232,28 @@ read.im3d.amiramesh<-function(file, ReadData=TRUE, ...){
        materials=materials)
 }
 
+read.im3d.nrrd<-function(f, ReadData=TRUE, AttachFullHeader=FALSE, 
+                         ..., chan=NA){
+  x=read.nrrd(file=f, ReadData = ReadData, AttachFullHeader=T, ...)
+  dims=attr(x,'header')$sizes
+  dims=dims[dims>1]
+  if(is.na(chan)){
+    if(length(dims)>3) stop("im3d is restricted to 3D image data")
+  } else {
+    if(ReadData)
+      x=x[,,,chan]
+    dims=dims[1:3]
+  }
+  # fetch voxel dimensions from attached header 
+  h=attr(x,'header')
+  voxdims=suppressWarnings(
+    nrrd.voxdims(h, ReturnAbsoluteDims = FALSE))
+  # drop full header if we haven't been asked for it specially
+  if(!AttachFullHeader) 
+    if(any(is.na(voxdims))) voxdims=NULL
+  im3d(x, dims=dims, voxdims=voxdims, origin=h[['space origin']])
+}
+
 #' Return voxel dimensions of an object
 #' 
 #' @description This would properly be thought of as the voxel spacing when 
@@ -342,16 +371,26 @@ boundingbox.character<-function(x, ...) {
 }
 
 #' @export
+#' @param na.rm Whether to ignore NA points (default \code{FALSE})
 #' @description \code{boundingbox.list} is designed to be used on objects that
 #'   contain 3d point information and for which \code{xyzmatrix} is defined.
 #' @rdname boundingbox
-boundingbox.list<-function(x, ...) {
+boundingbox.list<-function(x, na.rm=FALSE, ...) {
   # we don't want to do this for data.frame objects
   if(is.data.frame(x)) NextMethod()
   xyz=xyzmatrix(x)
-  bb=apply(xyz,2,range)
+  bb=apply(xyz,2,range, na.rm=na.rm)
   boundingbox(bb)
 }
+
+#' @export
+#' @description \code{boundingbox.shape3d} is designed to be used on objects 
+#'   that contain 3d point information and inherit from \code{rgl}'s 
+#'   \code{shape3d} class and for which \code{xyzmatrix} is defined. Presently
+#'   this applies to \code{\link{mesh3d}} objects.
+#'   
+#' @rdname boundingbox
+boundingbox.shape3d<-boundingbox.list
 
 #' @method boundingbox default
 #' @export
@@ -410,7 +449,6 @@ dim.im3d<-function(x){
 #' Method to plot spatially calibrated image arrays
 #' @export
 #' @method image im3d
-#' @importFrom graphics image .filled.contour
 #' @param x The im3d object containing the data to be plotted  (\code{NA}s are 
 #'   allowed).
 #' @param zlim the minimum and maximum \code{z} values for which colors should 
@@ -911,7 +949,6 @@ clampmax<-function(xmin, xmax, replace.infinite=NA_real_) {
 #' @param border Color for rectangle border (see \code{\link{rect}}'s 
 #'   \code{border} argument for details).
 #' @param \dots Additional arguments for \code{plot}
-#' @importFrom graphics rect
 #' @export
 #' @examples
 #' \dontrun{
@@ -1000,6 +1037,7 @@ imexpand.grid<-function(d){
 #' @param ijk an Nx3 matrix of pixel coordinates (1-indexed)
 #' @name im3d-coords
 #' @aliases im3d-coords xyzpos
+#' @seealso \code{\link{ind2coord}}
 #' @family im3d
 #' @export
 xyzpos<-function(d, ijk)

@@ -48,6 +48,9 @@ test_that("subset.neuronlist and [] do the same thing", {
                Cell07PNs[rep(FALSE,length(Cell07PNs))])
   # numeric indices
   expect_equal(subset(Cell07PNs, c(1, 3)), Cell07PNs[c(1, 3)])
+  
+  # null subset
+  expect_equal(subset(Cell07PNs, NULL), Cell07PNs)
 })
 
 test_that("subset.neuronlist works with various indexing forms", {
@@ -67,10 +70,10 @@ test_that("subset.neuronlist drops NA rows", {
   # make a copy of original
   x=Cell07PNs
   # set one entry to NA
-  attr(x,'df')$Glomerulus[1]=NA
+  data.frame(x)$Glomerulus[1]=NA
   
   expect_equal(subset(Cell07PNs, Glomerulus=='DL3'), 
-               subset(x, Glomerulus=='DL3'))
+               subset(x, Glomerulus=='DL3'), check.attributes=F)
 })
 
 aptip<-function(x) {xyz=xyzmatrix(x);any(xyz[,'X']>350 & xyz[,'Y']<40)}
@@ -152,6 +155,11 @@ test_that("plot2d neuronlist contents",{
   x<-plot(Cell07PNs, subset=!duplicated(Glomerulus), col=Glomerulus, 
           colpal=c(DA1='red','grey'))
   expect_equal(attr(x,'df')$col, c("red","grey","grey", "grey"))
+  
+  x=Cell07PNs[1:4]
+  # check we can cope with NA points and soma
+  x[[1]]$d$X[6]=NA
+  plot(x, soma=1.5, PlotAxes='YZ')
 })
 
 context("neuronlist: plot3d")
@@ -160,6 +168,7 @@ test_that("plot neuronlist contents",{
   nplotted1 <- length(plot3d(c("EBH11R", "EBH20L"), db=Cell07PNs, WithNodes=T))
   op=options(nat.default.neuronlist="Cell07PNs")
   expect_equal(length(plot3d(c("EBH11R", "EBH20L"))), nplotted1)
+  plot3d(boundingbox(Cell07PNs[c("EBH11R", "EBH20L")]))
   options(op)
 })
 
@@ -215,6 +224,46 @@ test_that("as.data.frame.neuronlist behaves", {
   expect_equal(as.data.frame(kcs20, i=seq(kcs20)), cbind(df, i=seq(kcs20)))
   
   kcs20nodf=kcs20
-  attr(kcs20nodf, 'df')=NULL
+  data.frame(kcs20nodf)=NULL
   expect_equal(as.data.frame(kcs20nodf), data.frame(row.names=names(kcs20)))
+  
+  # should reorder data.frame by rownames
+  data.frame(kcs20nodf)<-df[rev(1:nrow(df)), ]
+  expect_equal(as.data.frame(kcs20nodf), as.data.frame(kcs20))
+  rownames(df)=letters[1:nrow(df)]
+  expect_error(data.frame(kcs20nodf)<-df, 'rownames do not match')
+})
+
+context("neuronlist: [")
+test_that("[.neuronlist does the right thing",{
+  all.equal(kcs20[1:2], c(kcs20[1], kcs20[2]))
+  all.equal(kcs20[1,], as.data.frame(kcs20[1]))
+  all.equal(kcs20[1:2,], as.data.frame(kcs20[1:2]))
+  all.equal(kcs20[1:2,1], as.data.frame(kcs20[1:2])[[1]])
+  all.equal(kcs20[,], as.data.frame(kcs20))
+  
+  attr(kcs20,'df')=NULL
+  all.equal(kcs20[1:2], c(kcs20[1], kcs20[2]))
+  all.equal(kcs20[1,], as.data.frame(kcs20[1]))
+  all.equal(kcs20[1:2,], as.data.frame(kcs20[1:2]))
+  all.equal(kcs20[,], as.data.frame(kcs20))
+})
+
+test_that("dimnames does the right thing", {
+  expect_equal(rownames(kcs20), names(kcs20))
+  expect_equal(colnames(kcs20), names(as.data.frame(kcs20)))
+})
+
+test_that("[<-.neuronlist does the right thing",{
+  kcs13=kcs20[1:3]
+  
+  kcs13[,'side']=as.character(kcs13[,'soma_side'])
+  expect_equal(colnames(kcs13), c(colnames(kcs20), 'side'))
+  
+  # or parts of columns
+  kcs13[1,'soma_side']='R'
+  kcs13['FruMARCM-M001205_seg002','soma_side']='L'
+  all.equal(kcs13[,'side'], kcs20[1:3,'soma_side'])
+  
+  expect_null(colnames(kcs13[,]<-NULL))
 })

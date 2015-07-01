@@ -25,16 +25,55 @@ label field.}
 update checks. Sets command line \code{--verbose} option.}
 }
 \value{
-return dataframe describing results
+data.frame describing results with the following columns when image
+  \code{f} is of \code{imagetype='greyscale'} (optionally with a mask):
+
+  \itemize{
+
+  \item MaskLevel (only present when using a mask) the integer value of the
+  label field for this region
+
+  \item min The minimum voxel value within the current region
+
+  \item max The maximum voxel value within the current region
+
+  \item mean The mean voxel value within the current region
+
+  \item sdev The standard deviation of voxel values within the current region
+
+  \item n The count of \bold{all} voxel within the region (irrespective of
+  their value)
+
+  \item Entropy Information theoretic entropy of voxel value distribution
+  within region
+
+  \item sum Sum of voxel values within the region
+
+  }
+
+  When image \code{f} is of \code{imagetype='label'}, the following results
+  are returned:
+
+  \itemize{
+
+  \item level The integer value of the label field for this region
+
+  \item count The number of voxels in this region
+
+  \item surface The surface area of this region
+
+  \item volume The volume of this region
+
+  \item X,Y,Z 3D coordinates of the centroid of this region
+
+  }
 }
 \description{
 Calculate image statistics for a nrrd or other CMTK compatible file
 }
 \details{
-When given a label mask returns a dataframe with a row for each
-  level of the label field. If GJ's modified version of CMTK statistics is
-  available this will include an extra column with the number of non-zero
-  voxels in the main image for each level of the mask.
+When given a label mask, returns a dataframe with a row for each
+  level of the label field.
 }
 \examples{
 \dontrun{

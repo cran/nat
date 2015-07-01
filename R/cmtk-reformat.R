@@ -3,8 +3,9 @@
 #' @details if the character vector specifies an amiramesh file, it will be 
 #'   converted to a bare \code{im3d} object and then to an appropriate 
 #'   '--target-grid' specification.
-#' @param target A character vector specifying a file, an \code{im3d} object or
-#'   a 6-or 9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].
+#' @param target A character vector specifying an image file on disk, an
+#'   \code{im3d} object (or an object that can be coerced to im3d) or a 6-or
+#'   9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].
 #' @param ... additional arguments passed to methods
 #' @return a character vector specifying the full cmtk reformatx '--target' or 
 #'   '--target-grid' argument
@@ -33,25 +34,50 @@ cmtk.targetvolume.list<-function(target, ...) {
   cmtk.targetvolume(as.im3d(target))
 }
 
+cmtk.targetvolume.character <- function(target, ...) {
+  if (isTRUE(substr(target,1,2) == "--")) {
+    # we've already processed this, no action required
+    return(target)
+  }
+  if (!is.nrrd(target,TrustSuffix = TRUE) &&
+      isTRUE(try(is.amiramesh(target), silent = TRUE)
+      )) {
+    return(cmtk.targetvolume(read.im3d(target,ReadData = FALSE)))
+  }
+  
+  shQuote(target)
+}
+
 #' @export
 #' @rdname cmtk.targetvolume
-cmtk.targetvolume.default<-function(target, ...) {  
-  if(is.character(target) && !is.nrrd(target,TrustSuffix=TRUE) &&
-       isTRUE(try(is.amiramesh(target), silent=TRUE))){
-    return(cmtk.targetvolume(read.im3d(target,ReadData=FALSE)))
-  }
-  if(is.character(target)){
-    target=shQuote(target)
-  } else if(is.vector(target)){
+cmtk.targetvolume.default <- function(target, ...) {
+  # designed to catch S3 objects that do not have class list but are
+  # nevertheless lists ... see cmtk.targetvolume.list for rationale
+  if (is.list(target))
+    return(cmtk.targetvolume(as.im3d(target)))
+  # new cmtk insists that floats look like floats
+  cmtkfloatvec = function(x)
+    paste(sprintf("%f",x),collapse = ",")
+  
+  if (is.vector(target)) {
     # specify a target range c(Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz])
-    if(length(target)==9) {
-      target=paste("--target-grid",
-                   paste(paste(target[1:3],collapse=","),paste(target[4:6],collapse=","),
-                         paste(target[7:9],collapse=","),sep=":"))
-    } else if(length(target)==6) {
-      target=paste("--target-grid",
-                   paste(paste(target[1:3],collapse=","),paste(target[4:6],collapse=","),sep=":"))
-    } else stop("Incorrect target specification: ",target)
+    if (length(target) == 9) {
+      target = paste("--target-grid",
+                     paste(
+                       paste(target[1:3], collapse = ","),
+                       cmtkfloatvec(target[4:6]),
+                       cmtkfloatvec(target[7:9]),
+                       sep = ":"
+                     ))
+    } else if (length(target) == 6) {
+      target = paste("--target-grid",
+                     paste(
+                       paste(target[1:3], collapse = ","),
+                       cmtkfloatvec(target[4:6]),
+                       sep = ":"
+                     ))
+    } else
+      stop("Incorrect target specification: ",target)
   } else {
     stop("Unrecognised target specification")
   }
@@ -67,8 +93,9 @@ cmtk.targetvolume.default<-function(target, ...) {
 #'   \code{interpolation} must be handled manually.
 #' @param floating The floating image to be reformatted
 #' @param registrations One or more CMTK format registrations on disk
-#' @param output The output image (defaults to targetstem-floatingstem.nrrd)
-#' @param mask Whether to treat target as a binary mask (only reformatting
+#' @param output The path to the output image (defaults to
+#'   \code{"<targetstem>_<floatingstem>.nrrd"})
+#' @param mask Whether to treat target as a binary mask (only reformatting 
 #'   positve voxels)
 #' @param interpolation What interpolation scheme to use for output image 
 #'   (defaults to linear - see details)
@@ -86,6 +113,7 @@ cmtk.targetvolume.default<-function(target, ...) {
 #' @param ... additional arguments passed to CMTK \code{reformatx} after 
 #'   processing by \code{\link{cmtk.call}}.
 #' @inheritParams cmtk.targetvolume
+#' @inheritParams xformimage.cmtkreg
 #' @importFrom nat.utils makelock removelock RunCmdForNewerInput
 #' @seealso \code{\link{cmtk.bindir}, \link{cmtk.call}, \link{makelock}, 
 #'   \link{RunCmdForNewerInput}}
@@ -101,16 +129,16 @@ cmtk.targetvolume.default<-function(target, ...) {
 #' system(cmtk.call('reformatx', help=TRUE))
 #' }
 cmtk.reformatx<-function(floating, registrations, output, target, mask=FALSE,
+                         direction=NULL, 
                          interpolation=c("linear", "nn", "cubic", "pv", "sinc-cosine", "sinc-hamming"),
                          dryrun=FALSE, Verbose=TRUE, MakeLock=TRUE, 
                          OverWrite=c("no","update","yes"),
                          filesToIgnoreModTimes=NULL, ...){
-  # TODO improve default ouput file name
-  basestem<-function(f) tools::file_path_sans_ext(basename(f))
+  basestem<-function(f) tools::file_path_sans_ext(basename(as.character(f)))
   if(missing(output)){
-    output=file.path(dirname(floating),paste(basestem(target),"-",basestem(floating),'.nrrd',sep=""))
+    output=file.path(dirname(floating),paste(basestem(target),"_",basestem(floating),'.nrrd',sep=""))
   } else if(isTRUE(file.info(output)$isdir)){
-    output=file.path(output,paste(basestem(target),"-",basestem(floating),'.nrrd',sep=""))
+    output=file.path(output,paste(basestem(target),"_",basestem(floating),'.nrrd',sep=""))
   }
   if(is.logical(OverWrite)) OverWrite=ifelse(OverWrite,"yes","no")
   else OverWrite=match.arg(OverWrite)
@@ -138,10 +166,15 @@ cmtk.reformatx<-function(floating, registrations, output, target, mask=FALSE,
     } else if(Verbose) cat("Overwriting",output,"because OverWrite=\"yes\"\n")
   } else OverWrite="yes" # just for the purpose of the runtime checks below 
   
+  # deal with registrations
+  direction=match.arg(direction, c("forward", "inverse"), several.ok = T)
+  inverseflags <- sapply(direction, function(x) ifelse(x == 'forward', '', '--inverse'))
+  regspec <- paste(c(rbind(inverseflags, shQuote(path.expand(registrations)))), collapse=" ")
+
   cmd=cmtk.call('reformatx',if(Verbose) "--verbose" else NULL,
                 outfile=shQuote(output),floating=shQuote(floating),
                 mask=mask, interpolation=interpolation, ...,
-                FINAL.ARGS=c(targetspec,paste(shQuote(registrations),collapse=" ")))
+                FINAL.ARGS=c(targetspec, regspec))
   lockfile=paste(output,".lock",sep="")
   PrintCommand<-FALSE
   if(dryrun) PrintCommand<-TRUE
@@ -162,22 +195,61 @@ cmtk.reformatx<-function(floating, registrations, output, target, mask=FALSE,
 
 #' Calculate image statistics for a nrrd or other CMTK compatible file
 #' 
-#' @details When given a label mask returns a dataframe with a row for each 
-#'   level of the label field. If GJ's modified version of CMTK statistics is 
-#'   available this will include an extra column with the number of non-zero 
-#'   voxels in the main image for each level of the mask.
+#' @details When given a label mask, returns a dataframe with a row for each 
+#'   level of the label field.
 #' @details Note that the Entropy column (sometimes H, sometimes Entropy) will 
 #'   always be named Entropy in the returned dataframe.
 #' @param f Path to image file (any CMTK compatible format)
 #' @param mask Optional path to a mask file
-#' @param imagetype Whether image should be treated as greyscale (default) or
+#' @param imagetype Whether image should be treated as greyscale (default) or 
 #'   label field.
 #' @param masktype Whether mask should be treated as label field or binary mask 
 #'   (default label)
 #' @param ... Additional arguments for ctmk's statistics tool processed by 
 #'   \code{\link{cmtk.call}}.
 #' @inheritParams cmtk.reformatx
-#' @return return dataframe describing results
+#' @return data.frame describing results with the following columns when image
+#'   \code{f} is of \code{imagetype='greyscale'} (optionally with a mask):
+#'   
+#'   \itemize{
+#'   
+#'   \item MaskLevel (only present when using a mask) the integer value of the 
+#'   label field for this region
+#'   
+#'   \item min The minimum voxel value within the current region
+#'   
+#'   \item max The maximum voxel value within the current region
+#'   
+#'   \item mean The mean voxel value within the current region
+#'   
+#'   \item sdev The standard deviation of voxel values within the current region
+#'   
+#'   \item n The count of \bold{all} voxel within the region (irrespective of 
+#'   their value)
+#'   
+#'   \item Entropy Information theoretic entropy of voxel value distribution 
+#'   within region
+#'   
+#'   \item sum Sum of voxel values within the region
+#'   
+#'   }
+#'   
+#'   When image \code{f} is of \code{imagetype='label'}, the following results
+#'   are returned:
+#'   
+#'   \itemize{
+#'   
+#'   \item level The integer value of the label field for this region
+#'   
+#'   \item count The number of voxels in this region
+#'   
+#'   \item surface The surface area of this region
+#'   
+#'   \item volume The volume of this region
+#'   
+#'   \item X,Y,Z 3D coordinates of the centroid of this region
+#'   
+#'   }
 #' @export
 #' @examples
 #' \dontrun{
@@ -218,3 +290,4 @@ cmtk.statistics<-function(f, mask, imagetype=c("greyscale","label"),
     read.table(text=rval,header=TRUE,skip=1,comment.char="")
   }
 }
+ 

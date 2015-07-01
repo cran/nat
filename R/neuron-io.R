@@ -93,7 +93,7 @@ read.neuron<-function(f, format=NULL, ...){
 #'   
 #'   If the \code{paths} argument specifies a (single) directory then all files 
 #'   in that directory will be read unless an optional regex pattern is also 
-#'   specified. Similarly, if \code{paths} specifies a zip archive, all neurons
+#'   specified. Similarly, if \code{paths} specifies a zip archive, all neurons 
 #'   within the archive will be loaded.
 #'   
 #'   \code{neuronnames} must specify a unique set of names that will be used as 
@@ -121,7 +121,9 @@ read.neuron<-function(f, format=NULL, ...){
 #' @param df Optional data frame containing information about each neuron
 #' @param OmitFailures Omit failures (when TRUE) or leave an NA value in the 
 #'   list
-#' @param SortOnUpdate Sort the neuronlist when update adds new neurons
+#' @param SortOnUpdate When \code{nl!=NULL} the resultant neuronlist will be 
+#'   sorted so that neurons are ordered according to the value of the 
+#'   \code{paths} argument.
 #' @param nl An existing neuronlist to be updated (see details)
 #' @param ... Additional arguements to passed to read.neuron methods
 #' @return \code{\link{neuronlist}} object containing the neurons
@@ -162,7 +164,7 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
     unzip(paths, exdir=neurons_dir)
     paths=dir(neurons_dir, full.names = TRUE, recursive=TRUE)
   }
-  else if(inherits(paths,'neuronlistfh')){
+  else if(is.neuronlistfh(paths)){
     if(!inherits(attr(paths,'db'),'filehashRDS'))
       stop("read.neurons only supports reading neuronlistfh with an RDS format filehash")
     nlfh=paths
@@ -214,25 +216,9 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
     # no paths to load => existing list is up to date
     if(!length(nn)) return(nl)
     message("There are ",length(modified_neurons)," modified neurons",
-            " and ",length(new_neurons),'new neurons')
+            " and ",length(new_neurons),' new neurons')
     paths=paths[nn]
   } else nl=neuronlist()
-  # Look after the attached dataframe
-  if(!is.null(df)){
-    matching_rows=intersect(nn,rownames(df))
-    if(length(matching_rows)){
-      missing_rows=setdiff(nn,matching_rows)
-      if(length(missing_rows))
-        stop("Some neurons are not recorded in dataframe: ",
-             paste(missing_rows,collapse=" "))
-      missing_neurons=setdiff(matching_rows,nn)
-      if(length(missing_neurons))
-        warning(length(missing_neurons), 
-                " rows in dataframe do not have a matching neuron.")
-    } else {
-      stop("Dataframe rownames do not match neuron names.")
-    }
-  }
   # Actually read in the neurons, making sure that warnings/errors are thrown
   # immediately so that we can tell which neuron generated them
   ow=options(warn=1)
@@ -270,7 +256,10 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
     }
   }
   # nb only keep dataframe rows for neurons that were successfully read in
-  attr(nl,'df')=df[names(nl),]
+  # Look after the attached dataframe
+  if(!is.null(df)){
+    data.frame(nl)=df
+  }
   nl
 }
 
@@ -385,7 +374,7 @@ registerformat<-function(format=NULL,ext=format,read=NULL,write=NULL,magic=NULL,
 #' stopifnot(isTRUE(getformatreader(swc)$format=='swc'))
 #' unlink(swc)
 getformatreader<-function(file, class=NULL){
-  formatsforclass<-fileformats(class=class)
+  formatsforclass<-fileformats(class=class, read = TRUE)
   if(!length(formatsforclass)) return(NULL)
   
   magiclens=sapply(formatsforclass,function(f) get(f,envir=.fileformats)$magiclen)

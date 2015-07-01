@@ -3,9 +3,9 @@
 #' @description \code{neuronlist} objects consist of a list of neuron objects 
 #'   along with an optional attached dataframe containing information about the 
 #'   neurons. \code{neuronlist} objects can be indexed using their name or the 
-#'   number of the neuron like a regular list. Both the \code{list} itself and
+#'   number of the neuron like a regular list. Both the \code{list} itself and 
 #'   the attached \code{data.frame} must have the same unique (row)names. If the
-#'   \code{[} operator is used to index the list, the attached dataframe will
+#'   \code{[} operator is used to index the list, the attached dataframe will 
 #'   also be subsetted.
 #'   
 #'   It is perfectly acceptable not to pass any parameters, generating an empty 
@@ -15,7 +15,8 @@
 #'   containing information about each neuron.
 #' @return A new neuronlist object.
 #' @family neuronlist
-#' @seealso \code{\link{as.data.frame.neuronlist}}
+#' @seealso \code{\link{as.data.frame.neuronlist}},
+#'   \code{\link{neuronlist-dataframe-methods}}
 #' @export
 #' @examples
 #' # generate an empty neuronlist
@@ -88,14 +89,82 @@ as.neuronlist.default<-function(l, df=NULL, AddClassToNeurons=TRUE, ...){
 }
 
 #' @method [ neuronlist
+#' @description \code{[.neuronlist} and \code{[<-.neuronlist} behave like the 
+#'   corresponding base methods (\code{[.data.frame}, \code{[<-.data.frame}) 
+#'   allowing extraction or replacement of parts of the data.frame attached to
+#'   the neuronlist.
 #' @export
-"[.neuronlist" <- function(x,i,...) {
+#' @param i,j elements to extract or replace. Numeric or character or, for [ 
+#'   only, empty. Numeric values are coerced to integer as if by 
+#'   \code{as.integer}. See \code{\link{[.data.frame}} for details.
+#' @inheritParams base::`[.data.frame`
+#' @name neuronlist-dataframe-methods
+#' @seealso \code{\link{[.data.frame}}, @seealso \code{\link{[<-.data.frame}}
+#' @family neuronlist
+#' @examples
+#' ## treat kcs20 as data.frame
+#' kcs20[1, ]
+#' kcs20[1:3, ]
+#' kcs20[, 1:4]
+#' kcs20[, 'soma_side']
+#' # alternative to as.data.frame(kcs20)
+#' kcs20[, ]
+#' 
+#' ## can also set columns
+#' kcs13=kcs20[1:3]
+#' kcs13[,'side']=as.character(kcs13[,'soma_side'])
+#' head(kcs13)
+#' # or parts of columns
+#' kcs13[1,'soma_side']='R'
+#' kcs13['FruMARCM-M001205_seg002','soma_side']='L'
+#' # remove a column
+#' kcs13[,'side']=NULL
+#' all.equal(kcs13, kcs20[1:3])
+#' 
+#' # can even replace the whole data.frame like this
+#' kcs13[,]=kcs13[,]
+#' all.equal(kcs13, kcs20[1:3])
+#' 
+#' ## get row/column names of attached data.frame 
+#' # (unfortunately implementing ncol/nrow is challenging)
+#' rownames(kcs20)
+#' colnames(kcs20)
+"[.neuronlist" <- function(x, i, j, drop) {
+  
+  # x[1] => 2 args
+  # x[1, ] or x[, 1] => 3 args
+  if(nargs()>2) {
+    # treat as data.frame
+    df=as.data.frame(x)
+    if(missing(drop)) return(df[i, j])
+    else return(df[i, j, drop=drop])
+  }
+  # treat as neuronlist
   nl2=structure(NextMethod("["), class = class(x))
   df=attr(x,'df')
   if(!is.null(df)){
-    attr(nl2,'df')=df[i,,...]
+    df=df[i, ]
   }
+  attr(nl2,'df')=df
   nl2
+}
+
+#' @export
+#' @rdname neuronlist-dataframe-methods
+"[<-.neuronlist" <- function(x, i, j, value) {
+  if(nargs()<4) return(NextMethod())
+  # special case if we are replacing the whole 
+  if(missing(i) && missing(j)) return(data.frame(x)<-value)
+  df=as.data.frame(x)
+  df[i,j]=value
+  attr(x,'df')=df
+  x
+}
+
+#' @export
+dimnames.neuronlist<-function(x) {
+  # this only makes sense for the attached df
+  dimnames(as.data.frame(x))
 }
 
 #' Combine multiple neuronlists into a single list
@@ -133,30 +202,34 @@ c.neuronlist<-function(..., recursive = FALSE){
   as.neuronlist(NextMethod(...), df = new.df)
 }
 
-#' Extract the attached data.frame from a neuronlist
+#' Get or set the attached data.frame of a neuronlist
 #' 
-#' When there is no attached data.frame the result will be data.frame with 0 
-#' columns but an appropriate number of rows, named by the objects in the 
-#' neuronlist.
+#' For \code{as.data.frame}, when there is no attached data.frame the result 
+#' will be a data.frame with 0 columns but an appropriate number of rows, named by
+#' the objects in the neuronlist.
 #' 
 #' @param x neuronlist to convert
 #' @param row.names row names (defaults to names of objects in neuronlist, which
 #'   is nearly always what you want.)
 #' @param optional ignored in this method
-#' @param ... additional arguments passed to \code{\link{data.frame}} (see
+#' @param ... additional arguments passed to \code{\link{data.frame}} (see 
 #'   examples)
 #' @export
-#' @return a \code{data.frame} with length(x) rows, named according to names(x) 
-#'   and containing the columns from the attached data.frame, when present.
+#' @return for \code{as.data.frame.neuronlist}, a \code{data.frame} with
+#'   length(x) rows, named according to names(x) and containing the columns from
+#'   the attached data.frame, when present.
 #' @seealso \code{\link{data.frame}}, \code{\link{neuronlist}}
+#' @rdname get-set-neuronlist-data.frame
 #' @examples 
 #' head(as.data.frame(kcs20))
 #' 
 #' # add additional variables
 #' str(as.data.frame(kcs20, i=seq(kcs20), abc=LETTERS[seq(kcs20)]))
 #' # stop character columns being turned into factors
-#' str(as.data.frame(kcs20, i=seq(kcs20), abc=LETTERS[seq(kcs20)], 
-#'   stringsAsFactors=FALSE))
+#' newdf <- as.data.frame(kcs20, i=seq(kcs20), abc=LETTERS[seq(kcs20)], 
+#'   stringsAsFactors=FALSE)
+#' str(newdf)
+#' data.frame(kcs20)=newdf
 as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ...) {
   df=attr(x, 'df')
   if(is.null(df)) {
@@ -164,6 +237,49 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
   } else {
     data.frame(df, row.names = row.names, ...)
   }
+}
+
+#' @description \code{data.frame<-} methods set the data frame attached to an 
+#'   object. At present this is only used for neuronlist objects.
+#' @param value The new data.frame to be attached to \code{x}
+#' @rdname get-set-neuronlist-data.frame
+#' @export
+`data.frame<-`<-function(x, value) UseMethod("data.frame<-")
+
+#' @return for \code{data.frame<-.neuronlist}, a neuronlist with the attached
+#'   data.frame.
+#' @rdname get-set-neuronlist-data.frame
+#' @export
+`data.frame<-.neuronlist`<-function(x, value) {
+  if(is.null(value)){
+    # already null, so no change
+    if(is.null(attr(x, 'df'))) return(x)
+    # already exists but now want to set to NULL
+    attr(x,'df')=NULL
+    return(x)
+  }
+  nn=names(x)
+  matching_rows=intersect(nn, rownames(value))
+  if(length(matching_rows)){
+    missing_rows=setdiff(nn, matching_rows)
+    if(length(missing_rows))
+      stop("Some neurons are not recorded in data.frame: ",
+           paste(missing_rows, collapse=" "))
+    missing_neurons=setdiff(matching_rows, nn)
+    if(length(missing_neurons))
+      warning(length(missing_neurons),
+              " rows in data.frame do not have a matching neuron.")
+  } else {
+    stop("data.frame rownames do not match neuron names.")
+  }
+  if(!isTRUE(all.equal(rownames(value), matching_rows))) {
+    # we need to reorder the rows and/or subset the incoming data.frame
+    # we do it like this so that we don't touch the incoming data.frame
+    # unless strictly necessary
+    value=value[matching_rows,]
+  }
+  attr(x,'df')=value
+  x
 }
 
 #' lapply and mapply for neuronlists (with optional parallelisation)
@@ -251,7 +367,7 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #' plot3d(xyzflip)
 #' rgl.close()
 nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA){
-  cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X) 
+  cl=if(is.neuronlist(X) && !is.neuronlistfh(X)) class(X) 
   else c("neuronlist", 'list')
   
   if(!is.null(subset)){
@@ -288,7 +404,7 @@ nmapply<-function(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
                   USE.NAMES = TRUE, subset=NULL, OmitFailures=NA){
   if(!is.neuronlist(X))
     stop("X must be a neuronlist!")
-  cl=if(is.neuronlist(X) && !inherits(X, 'neuronlistfh')) class(X)
+  cl=if(is.neuronlist(X) && !is.neuronlistfh(X)) class(X)
   else c("neuronlist",'list')
   if(!is.null(subset)){
     if(!is.character(subset)) subset=names(X)[subset]
@@ -399,7 +515,7 @@ nmapply<-function(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
 #' jet.colors<-colorRampPalette(c('navy','cyan','yellow','red'))
 #' plot3d(jkn.aspg,col=cut(Ri,20),colpal=jet.colors)
 #' }
-plot3d.neuronlist<-function(x, subset, col=NULL, colpal=rainbow, skipRedraw=200,
+plot3d.neuronlist<-function(x, subset=NULL, col=NULL, colpal=rainbow, skipRedraw=200,
                             WithNodes=FALSE, soma=FALSE, ..., SUBSTITUTE=TRUE){
   # Handle Subset
   if(!missing(subset)){
@@ -486,7 +602,6 @@ plot3d.character<-function(x, db=NULL, ...) {
 #' @return list of values of \code{plot} with subsetted dataframe as attribute 
 #'   \code{'df'}
 #' @export
-#' @method plot neuronlist
 #' @seealso \code{\link{nat-package}, \link{plot3d.neuronlist}}
 #' @examples
 #' # plot 4 cells
@@ -498,7 +613,7 @@ plot3d.character<-function(x, db=NULL, ...) {
 #' # subset operation
 #' plot(Cell07PNs, subset=Glomerulus%in%c("DA1", "DP1m"), col=Glomerulus,
 #'   ylim=c(140,75), WithNodes=FALSE)
-plot.neuronlist<-function(x, subset, col=NULL, colpal=rainbow, add=NULL, 
+plot.neuronlist<-function(x, subset=NULL, col=NULL, colpal=rainbow, add=NULL, 
                           boundingbox=NULL, ..., SUBSTITUTE=TRUE){
   # Handle Subset
   if(!missing(subset)){
@@ -520,7 +635,7 @@ plot.neuronlist<-function(x, subset, col=NULL, colpal=rainbow, add=NULL,
   }
   
   # check bounding box for data
-  if(is.null(boundingbox)) boundingbox=boundingbox(x)
+  if(is.null(boundingbox)) boundingbox=boundingbox(x, na.rm=T)
   rval=mapply(plot, x, col=cols, add=add, 
               MoreArgs = list(boundingbox=boundingbox, ...), SIMPLIFY = F)
   
@@ -587,6 +702,7 @@ makecols<-function(cols, colpal, nitems) {
 #' @export
 #' @rdname neuronlist-arithmetic
 #' @method + neuronlist
+#' @family neuronlist
 `+.neuronlist` <- function(x,y) nlapply(x,`+`,y)
 
 #' @export
@@ -613,8 +729,8 @@ makecols<-function(cols, colpal, nitems) {
 #' @return the attached dataframe with levels dropped (NB \strong{not} the
 #'   neuronlist)
 #' @seealso \code{\link{droplevels}}
-droplevels.neuronlist<-function(x, except, ...){
-  droplevels(attr(x,'df'))
+droplevels.neuronlist<-function(x, except=NULL, ...){
+  droplevels(attr(x,'df'), except, ...)
 }
 
 #' @description \code{with} Evaluate expression in the context of dataframe
@@ -639,7 +755,6 @@ with.neuronlist<-function(data, expr, ...) {
 #' @rdname neuronlist-dataframe-methods
 #' @aliases head.neuronlist head
 #' @export
-#' @importFrom utils head
 #' @seealso \code{\link{head}}
 head.neuronlist<-function(x, ...) {
   head(as.data.frame(x), ...)
@@ -651,7 +766,6 @@ head.neuronlist<-function(x, ...) {
 #' @rdname neuronlist-dataframe-methods
 #' @aliases tail.neuronlist tail
 #' @export
-#' @importFrom utils tail
 #' @seealso \code{\link{tail}}
 tail.neuronlist<-function(x, ...) {
   tail(as.data.frame(x), ...)
@@ -710,6 +824,7 @@ tail.neuronlist<-function(x, ...) {
 #' subset(dps, names(dps)[1:100],filterfun=function(x) {sum(s3d(xyzmatrix(x)))>0},
 #'   rval='names')
 #' }
+#' @importFrom stats na.omit
 subset.neuronlist<-function(x, subset, filterfun, 
                             rval=c("neuronlist","names",'data.frame'), ...){
   rval=match.arg(rval)
@@ -723,7 +838,9 @@ subset.neuronlist<-function(x, subset, filterfun,
     r <- eval(e, df, parent.frame())
     if(is.function(r)) stop("Use of subset with functions is deprecated. ",
                             "Please use filterfun argument")
-    if(is.logical(r)){
+    if(is.null(r)){
+      r=nx
+    } else if(is.logical(r)){
       r=nx[r & !is.na(r)]
     } else if(is.numeric(r)){
       r=nx[na.omit(r)]

@@ -5,22 +5,29 @@
 \title{Reformat an image with a CMTK registration using the reformatx tool}
 \usage{
 cmtk.reformatx(floating, registrations, output, target, mask = FALSE,
-  interpolation = c("linear", "nn", "cubic", "pv", "sinc-cosine",
-  "sinc-hamming"), dryrun = FALSE, Verbose = TRUE, MakeLock = TRUE,
-  OverWrite = c("no", "update", "yes"), filesToIgnoreModTimes = NULL, ...)
+  direction = NULL, interpolation = c("linear", "nn", "cubic", "pv",
+  "sinc-cosine", "sinc-hamming"), dryrun = FALSE, Verbose = TRUE,
+  MakeLock = TRUE, OverWrite = c("no", "update", "yes"),
+  filesToIgnoreModTimes = NULL, ...)
 }
 \arguments{
 \item{floating}{The floating image to be reformatted}
 
 \item{registrations}{One or more CMTK format registrations on disk}
 
-\item{output}{The output image (defaults to targetstem-floatingstem.nrrd)}
+\item{output}{The path to the output image (defaults to
+\code{"<targetstem>_<floatingstem>.nrrd"})}
 
-\item{target}{A character vector specifying a file, an \code{im3d} object or
-a 6-or 9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].}
+\item{target}{A character vector specifying an image file on disk, an
+\code{im3d} object (or an object that can be coerced to im3d) or a 6-or
+9-vector defining a grid in the form Nx,Ny,Nz,dX,dY,dZ,[Ox,Oy,Oz].}
 
 \item{mask}{Whether to treat target as a binary mask (only reformatting
 positve voxels)}
+
+\item{direction}{Whether to transform image from sample space to reference
+space (called \strong{forward} by CMTK) or from reference to sample space
+(called \strong{inverse} by CMTK). Default (when \code{NULL} is forward).}
 
 \item{interpolation}{What interpolation scheme to use for output image
 (defaults to linear - see details)}

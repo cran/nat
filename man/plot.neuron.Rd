@@ -5,10 +5,11 @@
 \title{Plot a 2D projection of a neuron}
 \usage{
 \method{plot}{neuron}(x, WithLine = TRUE, WithNodes = TRUE,
-  WithAllPoints = FALSE, WithText = FALSE, PlotAxes = c("XY", "YZ", "XZ",
-  "ZY"), axes = TRUE, asp = 1, main = x$NeuronName, xlim = NULL,
-  ylim = NULL, AxisDirections = c(1, -1, 1), add = FALSE, col = NULL,
-  PointAlpha = 1, tck = NA, lwd = par("lwd"), boundingbox = NULL, ...)
+  WithAllPoints = FALSE, WithText = FALSE, soma = FALSE,
+  PlotAxes = c("XY", "YZ", "XZ", "ZY"), axes = TRUE, asp = 1,
+  main = x$NeuronName, sub = NULL, xlim = NULL, ylim = NULL,
+  AxisDirections = c(1, -1, 1), add = FALSE, col = NULL, PointAlpha = 1,
+  tck = NA, lwd = par("lwd"), boundingbox = NULL, ...)
 }
 \arguments{
 \item{x}{a neuron to plot.}
@@ -22,13 +23,19 @@ points)}
 
 \item{WithText}{whether to label plotted points with their id.}
 
+\item{soma}{Whether to plot a circle at neuron's origin representing the
+soma. Either a logical value or a numeric indicating the radius (default
+\code{FALSE}). When \code{soma=TRUE} the radius is hard coded to 2.}
+
 \item{PlotAxes}{the axes for the plot.}
 
 \item{axes}{whether axes should be drawn.}
 
 \item{asp}{the \code{y/x} aspect ratio, see \code{\link{plot.window}}.}
 
-\item{main}{the title for the plot.}
+\item{main}{the title for the plot}
+
+\item{sub}{sub title for the plot}
 
 \item{xlim}{limits for the horizontal axis (see also boundingbox)}
 
@@ -85,6 +92,10 @@ plot(Cell07PNs[[2]], add=TRUE)
 plot(Cell07PNs[[3]], PlotAxes="YZ")
 # Just plot the end points for the fourth example neuron
 plot(Cell07PNs[[4]], WithNodes=FALSE)
+# Plot with soma (of default radius)
+plot(Cell07PNs[[4]], WithNodes=FALSE, soma=TRUE)
+# Plot with soma of defined radius
+plot(Cell07PNs[[4]], WithNodes=FALSE, soma=1.25)
 }
 \seealso{
 \code{\link{plot3d.neuron}}
