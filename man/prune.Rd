@@ -22,7 +22,7 @@ prune(x, target, ...)
 \arguments{
 \item{x}{The object to prune. (e.g. \code{dotprops} object, see details)}
 
-\item{target}{Another object with 3d points that will determine which points
+\item{target}{Another object with 3D points that will determine which points
 in x are kept.}
 
 \item{...}{Additional arguments for methods (eventually passed to
@@ -33,10 +33,15 @@ in x are kept.}
 \item{keep}{Whether to keep points in x that are near or far from the target}
 
 \item{return.indices}{Whether to return the indices that pass the test rather
-than the 3d object/points (default \code{FALSE})}
+than the 3D object/points (default \code{FALSE})}
 }
 \description{
 prune an object by removing points near (or far) from a target object
+}
+\details{
+\code{prune.neuron} depends on a more basic function
+  \code{\link{prune_vertices}} and is also related to
+  \code{\link{subset.neuron}}.
 }
 \examples{
 ## prune single neurons
@@ -55,6 +60,11 @@ plot3d(kcs20[[11]], col='green', lwd=3)
 plot3d(kcs20,col='grey')
 }
 \seealso{
+\code{\link{prune_strahler}}, \code{\link{spine}},
+  \code{\link{prune_vertices}}
+
+\code{\link{subset.neuron}}
+
 \code{\link{subset.dotprops}}
 }
 

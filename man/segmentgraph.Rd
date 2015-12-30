@@ -4,18 +4,25 @@
 \alias{segmentgraph}
 \title{Return a simplified segment graph for a neuron}
 \usage{
-segmentgraph(x, weights = TRUE, exclude.isolated = FALSE,
-  include.xyz = FALSE)
+segmentgraph(x, weights = TRUE, segids = FALSE, exclude.isolated = FALSE,
+  include.xyz = FALSE, reverse.edges = FALSE)
 }
 \arguments{
 \item{x}{neuron}
 
-\item{weights}{Whether to include the original segment lengths as weights on
-the graph.}
+\item{weights}{Whether to include the original segment lengths as edge
+weights in the graph.}
 
-\item{exclude.isolated}{Whether to eliminated isolated nodes}
+\item{segids}{Whether to include the integer segment ids as an edge attribute
+in the graph}
 
-\item{include.xyz}{Whether to include 3d location as vertex attribute}
+\item{exclude.isolated}{Whether to eliminate isolated nodes}
+
+\item{include.xyz}{Whether to include 3D location as vertex attribute}
+
+\item{reverse.edges}{Whether to reverse the direction of each edge in the
+output graph to point towards (rather than away from) the root (default
+\code{FALSE})}
 }
 \value{
 \code{igraph} object containing only nodes of neuron keeping original
@@ -31,5 +38,11 @@ The resultant graph will contain all branch and endpoints of the
   present, the SubTrees field (containing multiple SegLists for each isolated
   graph in the neuron). Each edge in the output graph will match one segment
   in the original SegList.
+}
+\examples{
+sg=segmentgraph(Cell07PNs[[1]])
+str(sg)
+library(igraph)
+plot(sg, edge.arrow.size=.4, vertex.size=10)
 }
 

@@ -436,9 +436,9 @@ seglengths=function(x, all=FALSE, flatten=TRUE, sumsegment=TRUE){
   d=data.matrix(x$d[, c("X", "Y", "Z")])
   if(all && !flatten) {
     lapply(sts, function(st) sapply(st, 
-                                    function(s) seglength(d[s, ], sum=sumsegment),
+                                    function(s) seglength(d[s, , drop=FALSE], sum=sumsegment),
                                     simplify=sumsegment, USE.NAMES = FALSE ))
-  } else sapply(sts, function(s) seglength(d[s, ], sum=sumsegment),
+  } else sapply(sts, function(s) seglength(d[s, , drop=FALSE], sum=sumsegment),
                 simplify=sumsegment, USE.NAMES = FALSE)
 }
 
@@ -537,7 +537,7 @@ resample_segment<-function(d, stepsize, ...) {
   diffs=diff(dxyz)
   cumlength=c(0,cumsum(sqrt(rowSums(diffs*diffs))))
   
-  # find 3d position of new internal points
+  # find 3D position of new internal points
   # using linear approximation on existing segments
   # make an emty list for results
   dnew=list()
@@ -550,4 +550,98 @@ resample_segment<-function(d, stepsize, ...) {
     }
   }
   as.data.frame(dnew)
+}
+
+#' Subset neuron by keeping only vertices that match given conditions
+#' 
+#' @details \code{subset} defines which vertices of the neuron to keep and is 
+#'   one of \itemize{
+#'   
+#'   \item logical or numeric indices, in which case these are simply used to 
+#'   index the vertices in the order of the
+#'   
+#'   \item a function (which is called with the 3D points array and returns T/F 
+#'   vector)
+#'   
+#'   \item an expression evaluated in the context of the \code{x$d} data.frame 
+#'   containing the SWC specification of the points and connectivity of the 
+#'   neuron. This can therefore refer e.g. to the x,y,z location of vertices in 
+#'   the neuron.
+#'   
+#'   }
+#' @param x A neuron object
+#' @param subset A subset of points defined by indices, an expression, or a 
+#'   function (see Details)
+#' @param ... Additional parameters (passsed on to \code{\link{prune_vertices}})
+#' @return subsetted neuron
+#' @export
+#' @seealso \code{\link{prune.neuron}}, \code{\link{prune_vertices}},
+#'   \code{\link{subset.dotprops}}
+#' @examples
+#' n=Cell07PNs[[1]]
+#' # keep vertices if their X location is > 2000
+#' n1=subset(n, X>200)
+#' # diameter of neurite >1 
+#' n2=subset(n, W>1)
+#' # first 50 nodes
+#' n3=subset(n,1:50)
+#' 
+#' ## subset neuron by graph structure
+#' # first plot neuron and show the point that we will use to divide the neuron
+#' n=Cell07PNs[[1]]
+#' plot(n)
+#' # this neuron has a tag defining a point at which the neuron enters a brain
+#' # region (AxonLHEP = Axon Lateral Horn Entry Point)
+#' points(t(xyzmatrix(n)[n$AxonLHEP, 1:2]), pch=19, cex=2.5)
+#' 
+#' # now find the points downstream (distal) of that with respect to the root
+#' ng=as.ngraph(n)
+#' # use a depth first search 
+#' distal_points=igraph::dfs(ng, root=n$AxonLHEP, unreachable=FALSE, 
+#'   neimode='out')$order
+#' distal_tree=subset(n, distal_points)
+#' plot(distal_tree, add=TRUE, col='red', lwd=2)
+#' 
+#' # Find proximal tree as well
+#' # nb this does not include the AxonLHEP itself as defined here
+#' proximal_points=setdiff(igraph::V(ng), distal_points)
+#' proximal_tree=subset(n, proximal_points)
+#' plot(proximal_tree, add=TRUE, col='blue', lwd=2)
+#' 
+#' \dontrun{
+#' ## subset using interactively defined spatial regions
+#' plot3d(n)
+#' # nb you can save this select3d object using save or saveRDS functions
+#' # for future non-interactive use
+#' s3d=select3d()
+#' n4=subset(n, s3d(xyzmatrix(n)))
+#' # special case of previous version
+#' n5=subset(n, s3d)
+#' stopifnot(all.equal(n4,n5))
+#' # keep the points that were removed from n1
+#' n4.not=subset(n,Negate(s3d))
+#' # vertices with x position > 100 and inside the selector function
+#' n6=subset(n,X>100 & s3d(X,Y,Z))
+#' 
+#' ## subset each neuron object in a whole neuronlist
+#' n10=Cell07PNs[1:10]
+#' plot3d(n10, lwd=0.5, col='grey')
+#' n10.crop = nlapply(n10, subset, X>250)
+#' plot3d(n10.crop, col='red')
+#' }
+subset.neuron<-function(x, subset, ...){
+  e <- substitute(subset)
+  r <- eval(e, x$d, parent.frame())
+  if (!is.logical(r) && !is.numeric(r)) {
+    # a function that tells us whether a point is in or out
+    if(is.function(r)) r=subset(x$d[,c("X","Y","Z")])
+    else stop("Cannot evaluate subset")
+  }
+  if(is.logical(r)) {
+    r <- r & !is.na(r)
+    r <- which(r)
+  } else if(!is.numeric(r)) 
+    stop("Subset must evaluate to a logical or numeric index")
+  indstodrop=setdiff(seq(nrow(x$d)), r)
+  prune_vertices(x, indstodrop, ...)
 }

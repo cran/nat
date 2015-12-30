@@ -126,11 +126,22 @@ test_that("we can construct an im3d from a set of points",{
   expect_is(im<-as.im3d(xyzmatrix(kcs20), voxdims=c(1, 1, 1), 
                         BoundingBox=c(250, 410, 0, 130, 0, 120)), "im3d")
   expect_equal(dim(im), c(161, 131, 121))
+  testim=im3d(dims = c(256, 128, 105), 
+                voxdims = c(0.622087976539589, 0.622088062622309, 0.62208801843318))
+  expect_is(im2<-as.im3d(xyzmatrix(kcs20), testim), 'im3d')
+  expect_equal(boundingbox(im2), boundingbox(testim))
+  expect_equal(dim(im2), dim(testim))
+  expect_warning(as.im3d(xyzmatrix(kcs20), testim, origin = c(3,4,5)))
 })
 
 context("im3d boundingbox and friends")
 
 test_that("dim, voxdims and boundingbox work",{
+  
+  expect_equal(boundingbox(c(x0=0,x1=10,y0=0,y1=20,z0=0,z1=30), dims=c(1,2,3), 
+                           input='bounds'),
+               boundingbox(c(5, 5, 5, 15, 5, 25)))
+  
   expect_is(d<-read.im3d("testdata/nrrd/LHMask.nrrd"), 'im3d')
   expect_equal(dim(d),c(50,50,50))
   
@@ -287,4 +298,26 @@ test_that("clampmax works",{
   p=projection(d,projfun=clampmax(0,10))
   expect_true(max(p, na.rm=T)<=10)
   expect_true(min(p, na.rm=T)>=0)
+})
+
+
+context("im3d plotting")
+test_that("image.im3d works",{
+  LHMask=read.im3d('testdata/nrrd/LHMask.nrrd')
+  op=par(no.readonly = TRUE)
+  layout(matrix(c(1, 2), ncol = 2L), widths = c(1, 0.2))
+  
+  baseline=list(zlim = 0:1, nlevels.actual = 21L, nlevels.orig = 20, 
+                levels = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 
+                           0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 
+                           1),
+                colors = c("#000080", "#002894", "#0050A8", "#0078BC", 
+                           "#00A1D0", "#00C9E4", "#00F1F8", "#1AFFE4", "#43FFBB",
+                           "#6BFF93", "#93FF6B", "#BBFF43", "#E4FF1A", "#FFF100",
+                           "#FFC900", "#FFA100", "#FF7800", "#FF5000", "#FF2800",
+                           "#FF0000")
+                )
+  expect_equal(rval<-image(imslice(LHMask,10), asp=TRUE), baseline)
+  expect_null(imscalebar(rval))
+  par(op)
 })

@@ -1,8 +1,8 @@
 # nat: NeuroAnatomy Toolbox
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.10171-blue.svg)](http://dx.doi.org/10.5281/zenodo.10171) 
 [![Release Version](https://img.shields.io/github/release/jefferis/nat.svg)](https://github.com/jefferis/nat/releases/latest) 
-[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/nat)](http://cran.r-project.org/web/packages/nat) 
-[![Build Status](https://travis-ci.org/jefferis/nat.svg?branch=master)](https://travis-ci.org/jefferis/nat) 
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/nat)](http://cran.r-project.org/package=nat) 
+[![Build Status](https://img.shields.io/travis/jefferis/nat.svg)](https://travis-ci.org/jefferis/nat) 
 [![Coverage Status](https://coveralls.io/repos/jefferis/nat/badge.svg?branch=master)](https://coveralls.io/r/jefferis/nat?branch=master)
 
 An R package for the (3D) visualisation and analysis of biological image data, especially tracings of
@@ -100,15 +100,15 @@ devtools::install_github("jefferis/nat")
 
 The **nat** package includes extensive unit tests which are run along with R's
 (extremely fastidious) package check routines by the [Travis](http://travis-ci.org/jefferis/nat)
-continuous integration server. The master branch is therefore considered very stable.
+continuous integration server. The master branch is therefore considered very stable
+and may well contain fixes or enhancements over released versions. 
 However, you can install the latest point release version as follows:
 
 ```r
 devtools::install_github("jefferis/nat",ref="release")
 ```
-if you want to have the latest confirmed stable version. The same syntax can
-be used to install any arbitrary version that you want from github. See `?install_github`
-for details.
+The same syntax can be used to install any arbitrary version that you want 
+from github. See `?install_github` for details.
 
 Note: Windows users need [Rtools](http://www.murdoch-sutherland.com/Rtools/) to
 install in this way, but devtools should offer to install this for you if you

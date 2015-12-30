@@ -204,7 +204,7 @@ write.hxsurf <- function(surf, filename) {
   close(fc)
 }
 
-#' Plot amira surface objects in 3d using rgl
+#' Plot amira surface objects in 3D using rgl
 #' 
 #' @param x An hxsurf surface object
 #' @param materials Character vector or \code{\link{regex}} naming materials to
@@ -347,13 +347,13 @@ subset.hxsurf<-function(x, subset=NULL, drop=TRUE, rval=c("hxsurf","names"), ...
 
 #' Subset methods for different nat objects
 #' 
-#' These methods enable subsets of some nat objects including neuronlists and 
-#' dotprops objects to be obtained. See the help for each individual method for
+#' These methods enable subsets of some nat objects including neurons and 
+#' neuronlists to be obtained. See the help for each individual method for 
 #' details.
 #' 
 #' @name subset
-#' @seealso \code{\link{subset.dotprops}}, \code{\link{subset.hxsurf}}, 
-#'   \code{\link{subset.neuronlist}}
+#' @seealso \code{\link{subset.neuron}}, \code{\link{subset.dotprops}},
+#'   \code{\link{subset.hxsurf}}, \code{\link{subset.neuronlist}}
 NULL
 
 #' Find which points of an object are inside a surface

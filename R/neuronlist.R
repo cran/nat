@@ -154,7 +154,12 @@ as.neuronlist.default<-function(l, df=NULL, AddClassToNeurons=TRUE, ...){
 "[<-.neuronlist" <- function(x, i, j, value) {
   if(nargs()<4) return(NextMethod())
   # special case if we are replacing the whole 
-  if(missing(i) && missing(j)) return(data.frame(x)<-value)
+  if(missing(i) && missing(j)) {
+    # `data.frame<-.neuronlist` is supposed to return the neuronlist but 
+    # actually returns the data.frame for reasons that I haven't yet fathomed
+    data.frame(x)<-value
+    return(x)
+  }
   df=as.data.frame(x)
   df[i,j]=value
   attr(x,'df')=df
@@ -199,7 +204,7 @@ c.neuronlist<-function(..., recursive = FALSE){
   if(!is.null(new.df))
     rownames(new.df)=neuron_names
 
-  as.neuronlist(NextMethod(...), df = new.df)
+  as.neuronlist(NextMethod(args), df = new.df)
 }
 
 #' Get or set the attached data.frame of a neuronlist
@@ -303,12 +308,16 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #'   
 #'   \itemize{
 #'   
-#'   \item .progress set to \code{"text"} for a basic progress bar
+#'   \item \code{.inform} set to \code{TRUE} to give more informative error 
+#'   messages that should indicate which neurons are failing for a given applied
+#'   function.
 #'   
-#'   \item .parallel set to \code{TRUE} for parallelisation after registering a 
-#'   parallel backend (see below).
+#'   \item \code{.progress} set to \code{"text"} for a basic progress bar
 #'   
-#'   \item .paropts Additional arguments for parallel computation. See 
+#'   \item \code{.parallel} set to \code{TRUE} for parallelisation after
+#'   registering a parallel backend (see below).
+#'   
+#'   \item \code{.paropts} Additional arguments for parallel computation. See 
 #'   \code{\link[plyr]{llply}} for details.
 #'   
 #'   }
@@ -333,6 +342,10 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #'   error. The default value (\code{NA}) will result in nlapply stopping with 
 #'   an error message the moment there is an eror. For other values, see 
 #'   details.
+#' @param .progress Character vector specifying the type of progress bar (see 
+#'   \code{\link[plyr]{create_progress_bar}} for options.) The default value of 
+#'   \code{"auto"} shows a progress bar in interactive use when there are >=10
+#'   elements in \code{X}.
 #' @return A neuronlist
 #' @export
 #' @seealso \code{\link{lapply}}
@@ -344,6 +357,14 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #' plot3d(kcs.reduced,col='red', lwd=2)
 #' plot3d(kcs20,col='grey')
 #' rgl.close()
+#' 
+#' \dontrun{
+#' # example of using plyr's .inform argument for debugging error conditions
+#' xx=nlapply(Cell07PNs, prune_strahler)
+#' # oh dear there was an error, let's get some details about the neuron
+#' # that caused the problem
+#' xx=nlapply(Cell07PNs, prune_strahler, .inform=TRUE)
+#' }
 #' 
 #' \dontrun{
 #' ## nlapply example with plyr
@@ -366,7 +387,12 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #' plot3d(kcs20[1:3])
 #' plot3d(xyzflip)
 #' rgl.close()
-nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA){
+nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA, .progress='auto'){
+  
+  if(.progress=='auto') {
+    if(length(X)>=10 && interactive()) .progress="text"
+    else .progress="none"
+  }
   cl=if(is.neuronlist(X) && !is.neuronlistfh(X)) class(X) 
   else c("neuronlist", 'list')
   
@@ -377,7 +403,7 @@ nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA){
   }
   TFUN = if(is.na(OmitFailures)) FUN 
   else function(...) try(FUN(...), silent=TRUE)
-  rval=structure(plyr::llply(X, TFUN, ...), class=cl, df=attr(X, 'df'))
+  rval=structure(plyr::llply(X, TFUN, ..., .progress=.progress), class=cl, df=attr(X, 'df'))
   
   if(isTRUE(OmitFailures))
     failures=sapply(rval, inherits, 'try-error')
@@ -645,7 +671,7 @@ plot.neuronlist<-function(x, subset=NULL, col=NULL, colpal=rainbow, add=NULL,
   invisible(rval)
 }
 
-# internal utility function to handle colours for plot(3d).neuronlist
+# internal utility function to handle colours for plot(3D).neuronlist
 # see plot3d.neuronlist for details
 # @param nitems Number of items for which colours must be made
 makecols<-function(cols, colpal, nitems) {
@@ -773,28 +799,38 @@ tail.neuronlist<-function(x, ...) {
 
 #' Subset neuronlist returning either new neuronlist or names of chosen neurons
 #' 
-#' @details 
-#' The subset expression should evaluate to one of
-#' \itemize{
+#' @details The subset expression should evaluate to one of \itemize{
+#'   
 #'   \item character vector of names
+#'   
 #'   \item logical vector
+#'   
 #'   \item vector of numeric indices
-#' }
+#'   
+#'   }
+#'   
 #'   Any missing names are dropped with a warning. The \code{filterfun}
 #'   expression is wrapped in a try. Neurons returning an error will be dropped
 #'   with a warning.
+#'   
+#'   You may also be interested in \code{\link{find.neuron}}, which enables 
+#'   objects in a neuronlist to be subsetted by a 3D selection box. In addition 
+#'   \code{\link{subset.neuron}}, \code{\link{subset.dotprops}} methods exist: 
+#'   these are used to remove points from neurons (rather than to remove neurons
+#'   from neuronlists).
 #' @param x a neuronlist
 #' @param subset An expression that can be evaluated in the context of the 
 #'   dataframe attached to the neuronlist. See details.
-#' @param filterfun a function which can be applied to each neuron returning
+#' @param filterfun a function which can be applied to each neuron returning 
 #'   \code{TRUE} when that neuron should be included in the return list.
 #' @param rval What to return (character vector, default='neuronlist')
 #' @param ... additional arguments passed to \code{filterfun}
-#' @return A \code{neuronlist}, character vector of names or the attached
+#' @return A \code{neuronlist}, character vector of names or the attached 
 #'   data.frame according to the value of \code{rval}
 #' @export
 #' @method subset neuronlist
-#' @seealso \code{\link{neuronlist}, \link{subset.data.frame}}
+#' @seealso \code{\link{neuronlist}, \link{find.neuron}, 
+#'   \link{subset.data.frame}, \link{subset.neuron}, \link{subset.dotprops}}
 #' @examples
 #' da1pns=subset(Cell07PNs,Glomerulus=='DA1')
 #' with(da1pns,stopifnot(all(Glomerulus=='DA1')))
@@ -812,12 +848,12 @@ tail.neuronlist<-function(x, ...) {
 #' stopifnot(all.equal(subset(kcs20,type=='gamma' & odds),
 #'             subset(kcs20,type=='gamma' & rep(c(TRUE,FALSE),10))))
 #' \dontrun{
-#' # make a 3d selection function using interactive rgl::select3d() function
+#' # make a 3D selection function using interactive rgl::select3d() function
 #' s3d=select3d()
-#' # Apply a 3d search function to the first 100 neurons in the neuronlist dataset
+#' # Apply a 3D search function to the first 100 neurons in the neuronlist dataset
 #' subset(dps[1:100],filterfun=function(x) {sum(s3d(xyzmatrix(x)))>0},
 #'   rval='names')
-#' # combine a search by metadata, neuropil location and 3d location
+#' # combine a search by metadata, neuropil location and 3D location
 #' subset(dps, Gender=="M" & rAL>1000, function(x) sum(s3d(x))>0, rval='name')
 #' # The same but specifying indices directly, which can be considerably faster
 #' # when neuronlist is huge and memory is in short supply

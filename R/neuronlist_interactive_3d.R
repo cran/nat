@@ -1,4 +1,4 @@
-#' Find names of neurons within a 3d selection box (usually drawn in rgl window)
+#' Find neurons within a 3D selection box (usually drawn in rgl window)
 #' 
 #' @details Uses \code{\link{subset.neuronlist}}, so can work on dotprops or 
 #'   neuron lists.
@@ -8,15 +8,18 @@
 #' @param db \code{neuronlist} to search. Can also be a character vector naming 
 #'   the neuronlist. Defaults to \code{options('nat.default.neuronlist')}.
 #' @param threshold More than this many points must be present in region
-#' @param invert Whether to return neurons outside the selection box (default
+#' @param invert Whether to return neurons outside the selection box (default 
 #'   \code{FALSE})
-#' @return Character vector of names of selected neurons
+#' @param rval What to return (character vector, default='names')
+#'   
+#' @return Character vector of names of selected neurons, neuronlist, or 
+#'   data.frame of attached metadata according to the value of \code{rval}.
 #' @export
-#' @seealso \code{\link{select3d}, \link{subset.neuronlist}}
+#' @seealso \code{\link{select3d}, \link{find.soma}, \link{subset.neuronlist}}
 #' @examples
 #' \dontrun{
 #' plot3d(kcs20)
-#' # draw a 3d selection e.g. around tip of vertical lobe when ready
+#' # draw a 3D selection e.g. around tip of vertical lobe when ready
 #' find.neuron(db=kcs20)
 #' # would return 9 neurons
 #' # make a standalone selection function
@@ -28,21 +31,22 @@
 #' }
 find.neuron<-function(sel3dfun=select3d(), indices=names(db), 
                       db=getOption("nat.default.neuronlist"), threshold=0,
-                      invert=FALSE){
+                      invert=FALSE, rval=c("names",'data.frame',"neuronlist")){
   
   if(is.null(db))
     stop("Please pass a neuronlist in argument db or set options",
          "(nat.default.neuronlist='myfavneuronlist'). See ?nat for details.")
   if(is.character(db)) db=get(db)
   selfun=function(x){
-    pointsinside=sel3dfun(xyzmatrix(x))
+    pointsinside=sel3dfun(na.omit(xyzmatrix(x)))
     sum(pointsinside, na.rm=T)>threshold
   }
-  sel_neurons=subset(db, subset=indices, filterfun=selfun, rval='names')
-  if(invert) setdiff(indices, sel_neurons) else sel_neurons
+  if(invert) selfun=Negate(selfun)
+  rval=match.arg(rval)
+  subset(db, subset=indices, filterfun=selfun, rval=rval)
 }
 
-#' Find neurons with soma inside 3d selection box (usually drawn in rgl window)
+#' Find neurons with soma inside 3D selection box (usually drawn in rgl window)
 #' 
 #' @details Can work on \code{neuronlist}s containing \code{neuron} objects 
 #'   \emph{or} \code{neuronlist}s whose attached data.frame contains soma 
@@ -53,7 +57,8 @@ find.neuron<-function(sel3dfun=select3d(), indices=names(db),
 #' @seealso \code{\link{select3d}, \link{subset.neuronlist}, \link{find.neuron}}
 find.soma <- function (sel3dfun = select3d(), indices = names(db), 
                        db = getOption("nat.default.neuronlist"),
-                       invert=FALSE) 
+                       invert=FALSE,
+                       rval=c("names", "neuronlist", "data.frame"))
 {
   if (is.null(db)) 
     stop("Please pass a neuronlist in argument db or set options", 
@@ -61,18 +66,21 @@ find.soma <- function (sel3dfun = select3d(), indices = names(db),
   if (is.character(db)) 
     db = get(db)
   df=attr(db, 'df')
-  sel_neurons=if(all(c("X","Y","Z") %in% colnames(df))){
+  rval=match.arg(rval)
+  if(all(c("X","Y","Z") %in% colnames(df))){
     # assume these represent soma position
     somapos=df[indices,c("X","Y","Z")]
-    indices[sel3dfun(somapos)]
+    sel_neurons=indices[sel3dfun(somapos)]
+    if(invert) sel_neurons=setdiff(indices, sel_neurons)
+    if(rval=='names') sel_neurons else subset(db, indices=sel_neurons, rval=rval)
   } else {
     selfun = function(x) {
       somapos=x$d[x$StartPoint, c("X","Y","Z")]
       isTRUE(sel3dfun(somapos))
     }
-    subset(db, subset = indices, filterfun = selfun, rval = "names")
+    if(invert) selfun=Negate(selfun)
+    subset(db, subset = indices, filterfun = selfun, rval = rval)
   }
-  if(invert) setdiff(indices, sel_neurons) else sel_neurons
 }
 
 

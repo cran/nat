@@ -1,4 +1,4 @@
-#' Transform 3d points using a registration, affine matrix or function
+#' Transform 3D points using a registration, affine matrix or function
 #' 
 #' @description You should almost always call \code{\link{xform}} rather
 #'   calling than\code{xformpoints} directly.
@@ -50,9 +50,10 @@ xformpoints.cmtkreg<-function(reg, points, transformtype=c('warp','affine'),
   if(is.list(reg)){
     # we've been given an in memory list specifying registation parameters
     # we need to write this out to a temporary file
-    reg=as.cmtkreg(tempfile(fileext=".list"))
-    on.exit(unlink(reg,recursive=TRUE))
-    write.cmtkreg(reg)
+    regfile=as.cmtkreg(tempfile(fileext=".list"))
+    on.exit(unlink(regfile,recursive=TRUE))
+    write.cmtkreg(reg, regfile)
+    reg=regfile
   }
 
   transformtype=match.arg(transformtype)

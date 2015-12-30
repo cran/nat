@@ -41,10 +41,10 @@ as.cmtkreg<-function(x){
   x
 }
 
-#' @description \code{is.cmtkreg} checks if an object is a cmtk registration either by checking 
-#'   class (default), or inspecting file.
+#' @description \code{is.cmtkreg} checks if an object is a cmtk registration
+#'   either by checking class (default), or inspecting file.
 #' @param filecheck Whether to check object class only (default: 'none') or find
-#'   amd check if registration file \strong{exists} or check \strong{magic}
+#'   amd check if registration file \strong{exists} or check \strong{magic} 
 #'   value in first line of file.
 #' @rdname cmtkreg
 #' @export
@@ -53,10 +53,14 @@ is.cmtkreg<-function(x, filecheck=c('none','exists','magic')) {
   if(filecheck=='none') return(inherits(x,'cmtkreg'))
   if(!is.character(x)) return (FALSE)
   
-  if(length(x)>1) return(sapply(x,is.cmtkreg,filecheck=filecheck))
+  if(length(x)>1)
+    return(sapply(x, is.cmtkreg, filecheck=filecheck))
   
-  reg=cmtkreg(x, returnDir=FALSE)
-  if(filecheck=='exists') return(!is.na(reg))
+  reg=try(cmtkreg(x, returnDir=FALSE), silent=TRUE)
+  if(inherits(reg, 'try-error') || is.na(reg)) {
+    return(FALSE)
+  } else if(filecheck=='exists') return(TRUE)
+  
   # charToRaw('! TYPEDSTREAM')
   cmtk.magic=as.raw(c(0x21, 0x20, 0x54, 0x59, 0x50, 0x45, 0x44, 0x53, 0x54, 
                       0x52, 0x45, 0x41, 0x4d))
@@ -66,7 +70,7 @@ is.cmtkreg<-function(x, filecheck=c('none','exists','magic')) {
     magic<-readBin(gzf,what=raw(),n=length(cmtk.magic))
     close(gzf)
     magic},
-            silent = FALSE)
+    silent = TRUE)
 
   return(!inherits(magic,'try-error') && 
            length(magic)==length(cmtk.magic) 

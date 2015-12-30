@@ -28,15 +28,25 @@ A \code{neuronlist}, character vector of names or the attached
 Subset neuronlist returning either new neuronlist or names of chosen neurons
 }
 \details{
-The subset expression should evaluate to one of
-\itemize{
+The subset expression should evaluate to one of \itemize{
+
   \item character vector of names
+
   \item logical vector
+
   \item vector of numeric indices
-}
+
+  }
+
   Any missing names are dropped with a warning. The \code{filterfun}
   expression is wrapped in a try. Neurons returning an error will be dropped
   with a warning.
+
+  You may also be interested in \code{\link{find.neuron}}, which enables
+  objects in a neuronlist to be subsetted by a 3D selection box. In addition
+  \code{\link{subset.neuron}}, \code{\link{subset.dotprops}} methods exist:
+  these are used to remove points from neurons (rather than to remove neurons
+  from neuronlists).
 }
 \examples{
 da1pns=subset(Cell07PNs,Glomerulus=='DA1')
@@ -55,12 +65,12 @@ odds=rep(c(TRUE,FALSE),10)
 stopifnot(all.equal(subset(kcs20,type=='gamma' & odds),
             subset(kcs20,type=='gamma' & rep(c(TRUE,FALSE),10))))
 \dontrun{
-# make a 3d selection function using interactive rgl::select3d() function
+# make a 3D selection function using interactive rgl::select3d() function
 s3d=select3d()
-# Apply a 3d search function to the first 100 neurons in the neuronlist dataset
+# Apply a 3D search function to the first 100 neurons in the neuronlist dataset
 subset(dps[1:100],filterfun=function(x) {sum(s3d(xyzmatrix(x)))>0},
   rval='names')
-# combine a search by metadata, neuropil location and 3d location
+# combine a search by metadata, neuropil location and 3D location
 subset(dps, Gender=="M" & rAL>1000, function(x) sum(s3d(x))>0, rval='name')
 # The same but specifying indices directly, which can be considerably faster
 # when neuronlist is huge and memory is in short supply
@@ -69,6 +79,7 @@ subset(dps, names(dps)[1:100],filterfun=function(x) {sum(s3d(xyzmatrix(x)))>0},
 }
 }
 \seealso{
-\code{\link{neuronlist}, \link{subset.data.frame}}
+\code{\link{neuronlist}, \link{find.neuron},
+  \link{subset.data.frame}, \link{subset.neuron}, \link{subset.dotprops}}
 }
 

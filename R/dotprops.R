@@ -53,13 +53,13 @@ as.dotprops<-function(x, ...){
 #' @export
 #' @aliases scale.dotprops
 #' @description note that \code{scale.dotprops} recalculates the tangent vectors
-#'   after scaling the 3d coords. See \code{\link{dotprops}} for details.
+#'   after scaling the 3D coords. See \code{\link{dotprops}} for details.
 scale.dotprops<-function(x, center=TRUE, scale=TRUE){
   xyzmatrix(x)<-scale(xyzmatrix(x),scale=scale,center=center)
   dotprops(x)
 }
 
-#' @description \code{dotprops} makes dotprops representation from raw 3d points
+#' @description \code{dotprops} makes dotprops representation from raw 3D points
 #'   (extracting vertices from S3 objects that have them)
 #' @details \code{k} will default to 20 nearest neighbours when unset (i.e. when
 #'   it has default value of NA) unless \code{x} is a dotprops object (when the
@@ -108,7 +108,7 @@ dotprops.im3d <- function(x, ...) {
 
 #' @export
 dotprops.list<-function(x, ...) {
-  # FIXME - change to an abstract base class for objects with 3d vertices
+  # FIXME - change to an abstract base class for objects with 3D vertices
   # rather than the completely generic list
   dotprops(xyzmatrix(x), ...)
 }
@@ -313,18 +313,37 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black',
 #' Subset points in dotprops object that match given conditions
 #' 
 #' @details \code{subset} defines either logical or numeric indices, in which
-#'   case these are simply applied to the matrices that define the points, vect
-#'   etc OR a function (which is called with the 3d points array and returns T/F
+#'   case these are simply applied to the matrices that define the \code{points}, \code{vect} fields of the \code{dotprops} object
+#'   etc OR a function (which is called with the 3D points array and returns T/F.
+#'   OR an expression 
 #'   vector).
 #' @param x A dotprops object
-#' @param subset A subset of points defined by indices or a function (see Details)
+#' @param subset A subset of points defined by indices, an expression or a function (see Details)
 #' @param ... Additional parameters (currently ignored)
 #' @return subsetted dotprops object
 #' @method subset dotprops
 #' @export
-#' @seealso \code{prune.dotprops}
+#' @seealso \code{prune.dotprops}, \code{subset.neuron}
 #' @examples
+#' ## subset using indices ...
+#' dp=kcs20[[10]]
+#' dp1=subset(dp, 1:50)
+#' 
+#' # ... or an expression
+#' dp2=subset(dp, alpha>0.7)
+#' front=subset(dp, points[,'Z']<40)
+#' # use a helper function
+#' between=function(x, lower, upper) x>=lower & x<=upper
+#' middle=middle=subset(dp, between(points[,'Z'], 40, 60))
+#' 
+#' # plot results in 3D
+#' plot3d(front, col='red')
+#' plot3d(middle, col='green')
+#' plot3d(dp, col='blue')
+#' 
 #' \dontrun{
+#' 
+#' ## subset using an selection function
 #' s3d=select3d()
 #' dp1=subset(dp,s3d(points))
 #' # special case of previous version
@@ -364,10 +383,12 @@ subset.dotprops<-function(x, subset, ...){
 #' prune an object by removing points near (or far) from a target object
 #' @export
 #' @param x The object to prune. (e.g. \code{dotprops} object, see details)
-#' @param target Another object with 3d points that will determine which points 
+#' @param target Another object with 3D points that will determine which points 
 #'   in x are kept.
 #' @param ... Additional arguments for methods (eventually passed to 
 #'   \code{prune.default})
+#' @seealso \code{\link{prune_strahler}}, \code{\link{spine}},
+#'   \code{\link{prune_vertices}}
 #' @examples
 #' ## prune single neurons
 #' plot3d(kcs20[[1]],col='blue')
@@ -386,10 +407,15 @@ subset.dotprops<-function(x, subset, ...){
 prune<-function(x, target, ...) UseMethod("prune")
 
 #' @export
-#' @method prune neuron
+#' @details \code{prune.neuron} depends on a more basic function 
+#'   \code{\link{prune_vertices}} and is also related to
+#'   \code{\link{subset.neuron}}.
 #' @rdname prune
+#' @seealso \code{\link{subset.neuron}}
 prune.neuron<-function(x, target, ...){
-  stop("prune.neuron is not yet implemented!")
+  indstokeep=NextMethod(return.indices=TRUE)
+  indstodrop=setdiff(seq(nrow(x$d)), which(indstokeep))
+  prune_vertices(x, indstodrop, ...)
 }
 
 #' @export
@@ -414,7 +440,7 @@ prune.neuronlist<-function(x, target, ...){
 #' @param maxdist The threshold distance for keeping points
 #' @param keep Whether to keep points in x that are near or far from the target
 #' @param return.indices Whether to return the indices that pass the test rather
-#'   than the 3d object/points (default \code{FALSE})
+#'   than the 3D object/points (default \code{FALSE})
 #' @importFrom nabor knn
 prune.default<-function(x, target, maxdist, keep=c("near","far"), 
                         return.indices=FALSE, ...){

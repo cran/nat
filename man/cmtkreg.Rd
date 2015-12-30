@@ -32,7 +32,7 @@ value in first line of file.}
 \code{as.cmtkreg} adds class \code{cmtkreg} to objects that do not
   already inherit from it.
 
-\code{is.cmtkreg} checks if an object is a cmtk registration either by checking
-  class (default), or inspecting file.
+\code{is.cmtkreg} checks if an object is a cmtk registration
+  either by checking class (default), or inspecting file.
 }
 

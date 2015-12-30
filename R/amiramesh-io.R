@@ -555,19 +555,21 @@ is.amiratype<-function(type) {
   }
 }
 
-#' Write a 3d data object to an amiramesh format file
+#' Write a 3D data object to an amiramesh format file
 #' @inheritParams write.im3d
 #' @param enc Encoding of the data. NB "raw" and "binary" are synonyms.
 #' @param dtype Data type to write to disk
 #' @param endian Endianness of data block. Defaults to current value of 
 #'   \code{.Platform$endian}.
 #' @param WriteNrrdHeader Whether to write a separate detached nrrd header next 
-#'   to the amiramesh file allowing it to be opened by a NRRD reader. See
+#'   to the amiramesh file allowing it to be opened by a NRRD reader. See 
 #'   details.
-#' @details Note that only raw or text format data can accommodate a detached
-#'   NRRD format header - the
+#' @details Note that only \code{'raw'} or \code{'text'} format data can
+#'   accommodate a detached NRRD format header since Amira's HxZip format is
+#'   subtly different from NRRD's gzip encoding. There is a full description 
+#'   of the deteached NRRD format in the help for \code{\link{write.nrrd}}.
 #' @export
-#' @seealso \code{\link{.Platform}, \link{read.amiramesh}}
+#' @seealso \code{\link{.Platform}, \link{read.amiramesh}, \link{write.nrrd}}
 #' @examples
 #' d=array(rnorm(1000), c(10, 10, 10))
 #' tf=tempfile(fileext='.am')

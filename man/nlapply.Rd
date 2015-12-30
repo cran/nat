@@ -5,7 +5,7 @@
 \alias{nmapply}
 \title{lapply and mapply for neuronlists (with optional parallelisation)}
 \usage{
-nlapply(X, FUN, ..., subset = NULL, OmitFailures = NA)
+nlapply(X, FUN, ..., subset = NULL, OmitFailures = NA, .progress = "auto")
 
 nmapply(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE, USE.NAMES = TRUE,
   subset = NULL, OmitFailures = NA)
@@ -25,6 +25,11 @@ subset are passed through unmodified.}
 error. The default value (\code{NA}) will result in nlapply stopping with
 an error message the moment there is an eror. For other values, see
 details.}
+
+\item{.progress}{Character vector specifying the type of progress bar (see
+\code{\link[plyr]{create_progress_bar}} for options.) The default value of
+\code{"auto"} shows a progress bar in interactive use when there are >=10
+elements in \code{X}.}
 
 \item{MoreArgs}{a list of other arguments to \code{FUN}.}
 
@@ -61,12 +66,16 @@ When \code{OmitFailures} is not \code{NA}, \code{FUN} will be
 
   \itemize{
 
-  \item .progress set to \code{"text"} for a basic progress bar
+  \item \code{.inform} set to \code{TRUE} to give more informative error
+  messages that should indicate which neurons are failing for a given applied
+  function.
 
-  \item .parallel set to \code{TRUE} for parallelisation after registering a
-  parallel backend (see below).
+  \item \code{.progress} set to \code{"text"} for a basic progress bar
 
-  \item .paropts Additional arguments for parallel computation. See
+  \item \code{.parallel} set to \code{TRUE} for parallelisation after
+  registering a parallel backend (see below).
+
+  \item \code{.paropts} Additional arguments for parallel computation. See
   \code{\link[plyr]{llply}} for details.
 
   }
@@ -88,6 +97,14 @@ open3d()
 plot3d(kcs.reduced,col='red', lwd=2)
 plot3d(kcs20,col='grey')
 rgl.close()
+
+\dontrun{
+# example of using plyr's .inform argument for debugging error conditions
+xx=nlapply(Cell07PNs, prune_strahler)
+# oh dear there was an error, let's get some details about the neuron
+# that caused the problem
+xx=nlapply(Cell07PNs, prune_strahler, .inform=TRUE)
+}
 
 \dontrun{
 ## nlapply example with plyr

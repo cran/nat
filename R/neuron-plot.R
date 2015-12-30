@@ -1,4 +1,4 @@
-#' Plot neurons in 3d using rgl library
+#' Plot neurons in 3D using rgl library
 #' 
 #' @export
 #' @method plot3d neuron
@@ -121,7 +121,7 @@ plot3d.neuron<-function(x, WithLine=TRUE, NeuronNames=FALSE, WithNodes=TRUE,
 #' plot3d methods for different nat objects
 #' 
 #' These methods enable nat objects including neuronlists and dotprops objects
-#' to be plotted in 3d. See the help for each individual method for details along
+#' to be plotted in 3D. See the help for each individual method for details along
 #' with the help for the generic in the rgl package.
 #' 
 #' @name plot3d
@@ -202,7 +202,7 @@ pan3d <- function(button) {
 #'   nat assumes the default axis convention used in biological imaging, where
 #'   the origin of the y axis is the top rather than the bottom of the plot.
 #'   This is achieved by reversing the y axis of the 2D plot when the second
-#'   data axis is the Y axis of the 3d data. Other settings can be achieved by
+#'   data axis is the Y axis of the 3D data. Other settings can be achieved by
 #'   modfiying the AxisDirections argument.
 #'   
 #' @param x a neuron to plot.
@@ -370,7 +370,7 @@ plot.neuron <- function(x, WithLine=TRUE, WithNodes=TRUE, WithAllPoints=FALSE,
 #' \dontrun{
 #' plot3d(kcs20)
 #' # plot bounding box (in matching colours) for each neuron
-#' # NB makes used of nlapply/neuronlist in slightly unsusual context - 
+#' # NB makes use of nlapply/neuronlist in slightly unsusual context - 
 #' # plot3d.neuronlist can cope with lists containing anything with
 #' # a valid plot3d method.
 #' plot3d(nlapply(kcs20,boundingbox))

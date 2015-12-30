@@ -3,7 +3,7 @@
 #' \code{im3d} objects consist of a data array with attributes defining the 
 #' spatial positions at which the voxels are located. There should always be a 
 #' \code{BoundingBox} attribute which defines the physical extent of the volume 
-#' in the same manner as the Amira 3d visualisation and analysis software. This 
+#' in the same manner as the Amira 3D visualisation and analysis software. This 
 #' corresponds to the \strong{node} centers option in the 
 #' \href{http://teem.sourceforge.net/nrrd/format.html}{NRRD format}.
 #' @param x The object to turn into an im3d
@@ -102,36 +102,66 @@ as.im3d <- function(x, ...) UseMethod("as.im3d")
 as.im3d.im3d <- function(x, ...) x
 
 #' @export
+#' @param voxdims Numeric vector of length 3 \emph{or} an \code{im3d} compatible
+#'   object (see details) completely specifying the required space.
+#' @details \code{as.im3d.matrix} can accept any object that can be converted to
+#'   an im3d object in the \code{voxdims} argument This will completely specify 
+#'   the dims, voxdims, origin etc. Any value passed to those parameters will be
+#'   ignored. This can be useful for producing a new im3d to match a target 
+#'   image on disk or a \code{nat.templatebrains::templatebrain} object. See
+#'   examples.
 #' @inheritParams im3d
 #' @rdname as.im3d
+#' @seealso \code{\link{im3d}}, \code{\link{as.im3d}}
 #' @examples
-#' # convert a list of neurons into an image volume
+#' ## convert a list of neurons into an image volume
 #' im=as.im3d(xyzmatrix(kcs20), voxdims=c(1, 1, 1), 
 #'   BoundingBox=c(250, 410, 0, 130, 0, 120))
 #' \dontrun{
 #' write.im3d(im, 'kc20volume.nrrd')
+#' 
+#' ## use image dimensions of an image on disk
+#' # nb note use of ReadData = FALSE so that we just fetch the dimensions of
+#' # the target image
+#' diskim=read.im3d("/path/to/my/image.nrrd", ReadData = FALSE)
+#' im=as.im3d(xyzmatrix(kcs20), diskim)
+#' 
+#' ## use image dimensions of JFRC2 template brain to define the image space
+#' library(nat.flybrains)
+#' im=as.im3d(xyzmatrix(kcs20), JFRC2)
 #' }
 as.im3d.matrix<-function(x, voxdims, origin=NULL, BoundingBox=NULL, ...) {
   if(ncol(x)!=3 || nrow(x)<2) stop("Expects an Nx3 matrix of 3D points!")
-  if(length(voxdims)!=3) stop("voxdims must have length 3")
-  
-  if(is.null(BoundingBox))
-    r=apply(x, 2, range)
-  else r=boundingbox(BoundingBox)
-  
-  if(is.null(origin)) origin=r[1,]
-  else r[1, ]=origin
-  extents=apply(r, 2, diff)
-  dims=ceiling(abs(extents/voxdims))+1
-  emptyim=im3d(dims = dims, voxdims = voxdims, origin=origin)
+  if(is.object(voxdims)){
+    emptyim=try(as.im3d(voxdims))
+    if(inherits(emptyim, 'try-error'))
+      stop("Unable to interpret voxdims as an im3d object!",
+           "It must either be an im3d or have a matching as.im3d method")
+    if(!is.null(origin) || !is.null(BoundingBox))
+      warning("origin and BoundingBox arguments are ignored when voxdims is ",
+              "an im3d-compatible object")
+    dims=dim(emptyim)
+  } else {
+    if(length(voxdims)!=3) stop("voxdims must have length 3")
+    
+    if(is.null(BoundingBox))
+      r=apply(x, 2, range)
+    else r=boundingbox(BoundingBox)
+    
+    if(is.null(origin)) origin=r[1,]
+    else r[1, ]=origin
+    extents=apply(r, 2, diff)
+    dims=ceiling(abs(extents/voxdims))+1
+    emptyim=im3d(dims = dims, voxdims = voxdims, origin=origin)
+  }
   
   breaks=mapply(function(ps, delta) c(ps[1]-delta/2, ps+delta/2), 
-                attributes(emptyim)[c("x","y","z")], voxdims)
+                attributes(emptyim)[c("x","y","z")], voxdims(emptyim))
   i=cut(x[,1], breaks = breaks[[1]], labels = F)
   j=cut(x[,2], breaks = breaks[[2]], labels = F)
   k=cut(x[,3], breaks = breaks[[3]], labels = F)
   t3d=fast3dintegertable(i, j, k, dims[1], dims[2], dims[3])
-  im3d(t3d, voxdims = voxdims, origin=origin, ...)
+  im3d(t3d, emptyim, ...)
 }
 
 fast3dintegertable<-function (a, b, c, nlevelsa = max(a), nlevelsb = max(b), 
@@ -313,7 +343,7 @@ voxdims.default<-function(x, dims, ...){
 #'   an im3d BoundingBox, you should pass the argument \code{input='bounds'}.
 #' @param x A vector or matrix specifying a bounding box, an \code{im3d} object,
 #'   any object with base class list for which \code{\link{xyzmatrix}} can 
-#'   extract 3d points (e.g. neurons, surfaces etc), or, for 
+#'   extract 3D points (e.g. neurons, surfaces etc), or, for 
 #'   \code{boundingbox.character}, a character vector specifying a file.
 #' @inheritParams voxdims
 #' @return a \code{matrix} with 2 rows and 3 columns with 
@@ -347,7 +377,7 @@ boundingbox.im3d<-function(x, dims=dim(x), ...) {
   } else NULL
 }
 
-#' Return the space origin of a 3d image object
+#' Return the space origin of a 3D image object
 #' 
 #' @description Defined as the first coordinates (x,y,z) of the bounding box, 
 #'   which in turn matches the nrrd definition of the location of the "centre" 
@@ -373,7 +403,7 @@ boundingbox.character<-function(x, ...) {
 #' @export
 #' @param na.rm Whether to ignore NA points (default \code{FALSE})
 #' @description \code{boundingbox.list} is designed to be used on objects that
-#'   contain 3d point information and for which \code{xyzmatrix} is defined.
+#'   contain 3D point information and for which \code{xyzmatrix} is defined.
 #' @rdname boundingbox
 boundingbox.list<-function(x, na.rm=FALSE, ...) {
   # we don't want to do this for data.frame objects
@@ -385,7 +415,7 @@ boundingbox.list<-function(x, na.rm=FALSE, ...) {
 
 #' @export
 #' @description \code{boundingbox.shape3d} is designed to be used on objects 
-#'   that contain 3d point information and inherit from \code{rgl}'s 
+#'   that contain 3D point information and inherit from \code{rgl}'s 
 #'   \code{shape3d} class and for which \code{xyzmatrix} is defined. Presently
 #'   this applies to \code{\link{mesh3d}} objects.
 #'   
@@ -413,7 +443,7 @@ boundingbox.default<-function(x, dims, input=c("boundingbox",'bounds'), ...){
     if(missing(dims)) stop("must supply dimensions when input is of type bounds!")
     # we need to find the voxel dimensions in order to subtract off a
     # half voxel dim in each axis
-    halfVoxelDims=voxdims(x, dims=dims)/2
+    halfVoxelDims=diff(x)/dims/2
     x[1,]=x[1,]+halfVoxelDims
     x[2,]=x[2,]-halfVoxelDims
   }
@@ -461,7 +491,7 @@ dim.im3d<-function(x){
 #' @param xlab,ylab each a character string giving the labels for the x and y 
 #'   axis.  Default to the \sQuote{call names} of \code{x} or \code{y}, or to 
 #'   \code{""} if these were unspecified.
-#' @param plotdims Which dimensions of 3d \code{im3d} object to plot (character 
+#' @param plotdims Which dimensions of 3D \code{im3d} object to plot (character 
 #'   vector). Defaults to \code{c('x','y')}
 #' @param flipdims Which dimensions to flip (character vector). Defaults to 
 #'   flipping y.
@@ -586,7 +616,7 @@ image.im3d<-function(x, xlim=NULL, ylim=NULL, zlim=NULL,
                  levels=levels,colors=col))
 }
 
-#' Make 2D (orthogonal) projection of 3d image data
+#' Make 2D (orthogonal) projection of 3D image data
 #' 
 #' @param a Array of image data (im3d format)
 #' @param projdim The image dimension down which to project
@@ -728,14 +758,14 @@ flip.vector=function(x, ...) rev(x)
 #' @export
 flip.matrix=function(x, ...) flip.array(x, ...)
 
-#' Slice out a 3d subarray (or 2d matrix) from a 3d image array
+#' Slice out a 3D subarray (or 2d matrix) from a 3D image array
 #' 
 #' @param x An im3d objet
 #' @param slice Indices defining the slices to keep
 #' @param slicedim Character vector or integer defining axis from which slices 
 #'   will be removed.
 #' @param drop Whether singleton dimensions will be dropped (default: TRUE) 
-#'   conveting 3d array to 2d matrix.
+#'   conveting 3D array to 2d matrix.
 #' @details Note the sample locations stored in the x,y,z attributes will be 
 #'   updated appropriately. FIXME: Should we also update bounding box?
 #' @export
@@ -953,7 +983,7 @@ clampmax<-function(xmin, xmax, replace.infinite=NA_real_) {
 #' @examples
 #' \dontrun{
 #' LHMask=read.im3d(system.file('tests/testthat/testdata/nrrd/LHMask.nrrd',package='nat'))
-#' op=par()
+#' op=par(no.readonly = TRUE)
 #' layout(matrix(c(1, 2), ncol = 2L), widths = c(1, 0.2))
 #' rval=image(imslice(LHMask,10), asp=TRUE)
 #' imscalebar(rval)

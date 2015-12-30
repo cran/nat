@@ -2,10 +2,11 @@
 % Please edit documentation in R/neuronlist_interactive_3d.R
 \name{find.soma}
 \alias{find.soma}
-\title{Find neurons with soma inside 3d selection box (usually drawn in rgl window)}
+\title{Find neurons with soma inside 3D selection box (usually drawn in rgl window)}
 \usage{
 find.soma(sel3dfun = select3d(), indices = names(db),
-  db = getOption("nat.default.neuronlist"), invert = FALSE)
+  db = getOption("nat.default.neuronlist"), invert = FALSE,
+  rval = c("names", "neuronlist", "data.frame"))
 }
 \arguments{
 \item{sel3dfun}{A \code{\link{select3d}} style function to indicate if points
@@ -18,12 +19,14 @@ the neuronlist. Defaults to \code{options('nat.default.neuronlist')}.}
 
 \item{invert}{Whether to return neurons outside the selection box (default
 \code{FALSE})}
+
+\item{rval}{What to return (character vector, default='names')}
 }
 \value{
 Character vector of names of selected neurons
 }
 \description{
-Find neurons with soma inside 3d selection box (usually drawn in rgl window)
+Find neurons with soma inside 3D selection box (usually drawn in rgl window)
 }
 \details{
 Can work on \code{neuronlist}s containing \code{neuron} objects

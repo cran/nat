@@ -1,3 +1,52 @@
+nat 1.8.1
+=========
+* fix non-canonical URLs to CRAN packages (thanks to Uwe Ligges)
+
+nat 1.8.0
+=========
+This is tagged as a major release because of a change in behaviour that (by 
+default) suppresses interactive rgl windows when running in batch 
+(non-interactive) mode. See ?nat "rgl Package" section for details.
+
+* nat will only activate an rgl display in interactive mode, otherwise 
+  defaulting to rgl's NULL mode display. This should help run nat in batch mode
+  situations including knitr runs, the CRAN build server etc. (#272)
+* Add summary.neuron(list) functions to calculate tree statistics such as number
+ of nodes and cable length for neurons/neuronlists (#269)
+* Automate progress bar in nlapply - this will always show in interactive mode
+  when there are more than 10 neurons being processed. (#271)
+* Fix bug in c.neuronlist when combining more than 2 neuronlists (#270)
+* Fix bug in read.neuronlistfh on Windows (#268)
+* Fix bug when constructing an ngraph with a single node (#267)
+* Fix bug in `[<-.neuronlist` when assigning a whole data.frame using (#256)
+* Fix bug in bounding box with input = "bounds" (#273)
+* Documentation improvements (especiall package overview - see ?nat)
+
+nat 1.7.2
+=========
+* new function subset.neuron can keep/remove individual vertices from a neuron 
+  based on internal variables such as position, width, vertex number etc while
+  still producing a valid neuron with an appropriate graph structure (#261)
+* this depends on a new low level function prune_vertices that can remove 
+  specified vertices
+* this has also enabled the prune.neuron method to be defined for the first time
+  enabling pruning by spatial proximity ()
+* teach mirror to work with image data (#265) and enable better handling of the 
+  mirrorAxisSize by allowing this to be supplied as a bounding box (#254)
+* teach as.im3d.matrix to use an im3d object to specify the desired space (#263)
+  This enables for example a set or tracings to be turned into volume data that
+  exactly matches a specific template brain.
+* fix bug: seglengths fails for neurons with multiple trees bug (#257)
+* fix bug: xformpoint.cmtkreg fails for in memory registration lists (#259)
+
+nat 1.7.1
+=========
+* new functions strahler_order and prune_strahler to calculate the Strahler 
+  order of points in a neuron and to remove lower order (terminal) branches.
+* fix is.cmtkreg for non-existent files (and better handling of status messages)
+* export segmentgraph function for end users
+* enable segmentgraph to return segment ids
+
 nat 1.7.0
 =========
 * implement extraction/replacement of the data.frame attached to a neuronlist
