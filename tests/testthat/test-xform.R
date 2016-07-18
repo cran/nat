@@ -45,6 +45,10 @@ test_that("we can xform a neuronlist with multiple registrations", {
                      VectoriseRegistrations = T),
                xform(Cell07PNs[1:2], f1))
   
+  # now use reglist to wrap these transforms and check that works
+  expect_equal(xform(Cell07PNs[1:2], reglist(m1,m2)), Cell07PNs[1:2])
+  expect_equal(xform(Cell07PNs[1:2], reglist(f1, f1, swap=c(F,T))), Cell07PNs[1:2])
+  
   unlink(c(f1,f2))
 })
 }
@@ -94,7 +98,7 @@ if(!is.null(cmtk.bindir())){
     # nb this registration doesn't actually make any sense as mirroring
     # registration but it does produce some valid data
     m=matrix(c(0,0,0,300,200,50), ncol=3, byrow = T)
-    expect_warning(tm<-mirror(m, mirrorAxisSize = 636.396, warpfile = reg))
+    expect_warning(tm<-mirror(m, mirrorAxisSize = 636.396, warpfile = reglist(diag(4), reg)))
     baseline=matrix(c(NA,NA,NA,300.953189,183.401797,40.7112503), 
                     ncol=3, byrow = T)
     expect_equal(tm, baseline)
@@ -106,7 +110,7 @@ if(!is.null(cmtk.bindir())){
     bim=boundingbox(read.im3d(img, ReadData = F))
     tf=tempfile(fileext = '.nrrd')
     on.exit(unlink(tf))
-    mirror(img, output=tf, target=img)
+    mirror(img, warpfile=reglist(diag(4), reg), output=tf, target=img)
     expect_true(file.exists(tf))
     expect_equal(boundingbox(tf), bim)
   })

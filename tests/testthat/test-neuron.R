@@ -138,12 +138,12 @@ test_that("we can plot neurons in 2D", {
 
 test_that("we can plot neurons in 3D", {
   plottedLines <- plot3d(Cell07PNs[[1]], soma=3, WithText=T, WithNodes = T, WithAllPoints=T)$lines
-  expect_more_than(plottedLines, 0)
+  expect_gt(plottedLines, 0)
 })
 
 test_that("we can plot dotprops in 3D", {
   plottedSegments <- plot3d(kcs20[[1]])$segments
-  expect_more_than(plottedSegments, 0)
+  expect_gt(plottedSegments, 0)
 })
 
 context("neuron seglengths/resampling")
@@ -222,9 +222,19 @@ test_that("we can subset a neuron", {
   expect_is(n1<-subset(n, X>200), 'neuron')
   npoints_dropped=sum(xyzmatrix(n)[,1]<=200)
   expect_equal(nrow(n1$d), nrow(n$d)-npoints_dropped)
-  # diameter of neurite >1 
-  expect_equal(subset(n, W>0),n) 
+  # diameter of neurite >0
+  expect_equal(subset(n, W>0),n)
+  expect_equal(subset(n, W>1), subset(n, W<=1, invert=TRUE)) 
   # first 50 nodes
   expect_equal(subset(n,1:50)$d$PointNo, 1:50)
+  # function
+  f <- function(xyz) xyz[,3]>100
+  expect_equal(subset(n, f), subset(n, Z>100))
 })
 
+test_that("we can subset a neuron with a vertex sequence", {
+  n = Cell07PNs[[1]]
+  n_graph_dfs = igraph::graph.dfs(as.ngraph(n), root = 48, neimode = "out", unreachable = FALSE)
+  expect_is(n_subset <- subset(n, n_graph_dfs$order, invert = F), 'neuron')
+  expect_is(n_subset <- subset(n, n_graph_dfs$order, invert = T), 'neuron')
+})

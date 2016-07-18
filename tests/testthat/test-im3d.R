@@ -70,7 +70,7 @@ test_that("round trip test for im3d is successful",{
 context("im3d")
 
 test_that("we can set bounding box",{
-  z=im3d(,BoundingBox=c(0,1,0,2,0,4), dims=c(2,3,4))
+  z=im3d(BoundingBox=c(0,1,0,2,0,4), dims=c(2,3,4))
   
   z1=z
   boundingbox(z1)<-boundingbox(z)
@@ -175,7 +175,7 @@ test_that("dim, voxdims and boundingbox work",{
   expect_equal(nrrd, am)
 
   expect_true(is.raw(nrrdraw<-read.im3d(ReadByteAsRaw=TRUE,
-    "testdata/amira/VerySmallLabelField.nrrd", SimplifyAttributes=TRUE,)))
+    "testdata/amira/VerySmallLabelField.nrrd", SimplifyAttributes=TRUE)))
   expect_true(is.raw(amraw<-read.im3d(ReadByteAsRaw=TRUE,
     "testdata/amira/VerySmallLabelField.am", SimplifyAttributes=TRUE)))
   # ... and again
@@ -226,12 +226,25 @@ test_that("we can make projections",{
   expect_equal(pd, sd)
 })
 
-context("im3d unmask, threshold")
+context("im3d unmask, mask, threshold")
 
 test_that("unmask works",{
   i=im3d(array(1:6,1:3),voxdims=c(2,3,4))
   # unmask a vector of im3d contents by original im3d returns original
   expect_equal(unmask(as.vector(i),i),i)
+})
+
+test_that("mask works",{
+  m=im3d(array(1:6,1:3),voxdims=c(2,3,4))
+  materials(m)<-data.frame(name=c('left','right'), id=2:3)
+  i=im3d(array(1:6,1:3), voxdims=c(2,3,4))
+  # unmask a vector of im3d contents by original im3d returns original
+  expect_is(mask(i, m, levels = 1), 'im3d')
+  expect_is(mask(i, m, levels = 1, rval='values'), 'integer')
+  expect_equal(sum(mask(i, m, levels = 1, invert = TRUE)), sum(2:6))
+  expect_equal(sum(mask(i, m, levels = c("left", "right"))), sum(1:2))
+  expect_equal(mask(i, m), i)
+  expect_warning(sum(mask(i, m, levels = c("rhubarb"))), "Dropping levels")
 })
 
 test_that("threshold works",{
@@ -259,7 +272,7 @@ test_that("threshold works",{
 context("im3d coordinate utilities")
 
 test_that("xyzpos, ijkpos and imexpand.grid work",{
-  d=im3d(,dim=c(20,30,40),origin=c(10,20,30),voxdims=c(1,2,3))
+  d=im3d(dim=c(20,30,40),origin=c(10,20,30),voxdims=c(1,2,3))
   o=origin(d)
   expect_equal(ijkpos(d,o), c(1,1,1))
   expect_equal(xyzpos(d,c(1,1,1)), o)

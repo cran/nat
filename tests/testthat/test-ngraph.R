@@ -76,9 +76,14 @@ test_that("we can construct an empty ngraph",{
             'ngraph')
 })
 
+test_that("as.ngraph",{
+  expect_is(g<-as.ngraph(Cell07PNs[[1]]), 'ngraph')
+  expect_equal(g, as.ngraph(g))
+})
+
 test_that("we can find the length of the spine of a neuron", {
   n <- Cell07PNs[[1]]
-  spine.length <- spine(n, LengthOnly = TRUE)
+  spine.length <- spine(n, rval='length')
   spine.length.expected <- 186.085903694106
   expect_equal(spine.length, spine.length.expected, tolerance=1e-4)
 })
@@ -88,17 +93,29 @@ test_that("we can find the path of the spine of a neuron", {
   expect_is(spine <- spine(n), 'neuron')
   spine.expected <- readRDS('testdata/neuron/testCell07PNs1_spine.rds')
   expect_equal(spine, spine.expected)
-  expect_equal(spine(n, LengthOnly = T), 186.0859, tol=1e-4)
+  expect_equal(spine(n, rval='length'), 186.0859, tol=1e-4)
+  expect_equal(spine(n, rval='ids'), spine.expected$d$PointNo)
   
   # check that we get the same result when using start point,
   # since that is part of result
   expect_equal(spine(n, UseStartPoint = T), spine.expected)
-  expect_equal(spine(n, UseStartPoint = T, LengthOnly = T), 186.0859, tol=1e-4)
+  expect_equal(spine(n, UseStartPoint = T, rval='length'), 186.0859, tol=1e-4)
   
   # check that can cope with point labels other than 1:n
   n$d$PointNo=n$d$PointNo+1
   spine.expected$PointNo=spine.expected$PointNo+1
   expect_equal(spine, spine.expected)
+})
+
+test_that("we can find the inverse of the spine", {
+  n <- Cell07PNs[[1]]
+  neuron.length=sum(seglengths(n))
+  expect_is(antispine<-spine(n, invert = TRUE), 'neuron')
+  expect_equal(sum(seglengths(antispine, all = TRUE)),
+               neuron.length-spine(n, rval='length'),
+               tolerance=1e-4)
+  expect_equal(spine(n, invert = TRUE, rval = 'ids'),
+               match(antispine$d$PointNo, n$d$PointNo))
 })
 
 test_that("setting of graph attributes",{
@@ -142,7 +159,7 @@ test_that("we can find the segmentgraph of a neuron",{
   # check that we can make a segment graph where each edge direction is
   # reversed
   expect_is(sgr<-segmentgraph(testn, reverse.edges = TRUE), 'igraph')
-  expect_equal(ends(sgr,E(sgr)), ends(sg,E(sg))[,2:1])
+  expect_equal(get.edges(sgr,E(sgr)), get.edges(sg,E(sg))[,2:1])
   
   # and with segment ids included
   expect_is(sgs<-segmentgraph(testn, segids = TRUE), 'igraph')

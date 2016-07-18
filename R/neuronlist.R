@@ -1,7 +1,8 @@
 #' Create a neuronlist from zero or more neurons
 #' 
 #' @description \code{neuronlist} objects consist of a list of neuron objects 
-#'   along with an optional attached dataframe containing information about the 
+#'   (usually of class \code{\link{neuron}} or \code{\link{dotprops}}) along 
+#'   with an optional attached dataframe containing information about the 
 #'   neurons. \code{neuronlist} objects can be indexed using their name or the 
 #'   number of the neuron like a regular list. Both the \code{list} itself and 
 #'   the attached \code{data.frame} must have the same unique (row)names. If the
@@ -15,14 +16,19 @@
 #'   containing information about each neuron.
 #' @return A new neuronlist object.
 #' @family neuronlist
-#' @seealso \code{\link{as.data.frame.neuronlist}},
-#'   \code{\link{neuronlist-dataframe-methods}}
+#' @seealso \code{\link{as.data.frame.neuronlist}}, 
+#'   \code{\link{neuronlist-dataframe-methods}}, \code{\link{neuron}}, 
+#'   \code{\link{dotprops}}
 #' @export
 #' @examples
 #' # generate an empty neuronlist
 #' nl=neuronlist()
 #' # slice an existing neuronlist with regular indexing
 #' kcs5=kcs20[1:5]
+#' 
+#' # extract a single neuron from a neuronlist
+#' n1=Cell07PNs[[1]]
+#' 
 #' # list all methods for neuronlist objects
 #' methods(class='neuronlist')
 neuronlist <- function(..., DATAFRAME=NULL) as.neuronlist(list(...), df=DATAFRAME)
@@ -136,14 +142,19 @@ as.neuronlist.default<-function(l, df=NULL, AddClassToNeurons=TRUE, ...){
   if(nargs()>2) {
     # treat as data.frame
     df=as.data.frame(x)
-    if(missing(drop)) return(df[i, j])
+    if(missing(drop)) {
+      if(missing(i) && missing(j)) return(df[i, j, drop=FALSE])
+      return(df[i, j])
+    }
     else return(df[i, j, drop=drop])
   }
   # treat as neuronlist
   nl2=structure(NextMethod("["), class = class(x))
   df=attr(x,'df')
   if(!is.null(df)){
-    df=df[i, ]
+    # we never want to drop because the result must be a data.frame 
+    # even when it only has one column
+    df=df[i, , drop=FALSE]
   }
   attr(nl2,'df')=df
   nl2
@@ -383,10 +394,12 @@ as.data.frame.neuronlist<-function(x, row.names = names(x), optional = FALSE, ..
 #' # flip first neuron in X, second in Y and 3rd in Z
 #' xyzflip=nmapply(mirror, kcs20[1:3], mirrorAxis = c("X","Y","Z"),
 #'  mirrorAxisSize=c(400,20,30))
+#' \donttest{
 #' open3d()
 #' plot3d(kcs20[1:3])
 #' plot3d(xyzflip)
 #' rgl.close()
+#' }
 nlapply<-function (X, FUN, ..., subset=NULL, OmitFailures=NA, .progress='auto'){
   
   if(.progress=='auto') {
@@ -513,9 +526,9 @@ nmapply<-function(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
 #' @examples
 #' open3d()
 #' plot3d(kcs20,type=='gamma',col='green')
+#' \donttest{
 #' clear3d()
 #' plot3d(kcs20,col=type)
-#' \dontrun{
 #' plot3d(Cell07PNs,Glomerulus=="DA1",col='red')
 #' plot3d(Cell07PNs,Glomerulus=="VA1d",col='green')
 #' # Note use of default colour for non DA1 neurons
@@ -525,7 +538,8 @@ nmapply<-function(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
 #'   col=c("red","green")[factor(Glomerulus)])
 #' # the same but not specifying colours explicitly
 #' plot3d(Cell07PNs,Glomerulus%in%c("DA1",'VA1d'),col=Glomerulus)
-#' 
+#' }
+#' \dontrun{
 #' ## more complex colouring strategies for a larger neuron set
 #' # see https://github.com/jefferis/frulhns for details
 #' library(frulhns)
@@ -541,7 +555,8 @@ nmapply<-function(FUN, X, ..., MoreArgs = NULL, SIMPLIFY = FALSE,
 #' jet.colors<-colorRampPalette(c('navy','cyan','yellow','red'))
 #' plot3d(jkn.aspg,col=cut(Ri,20),colpal=jet.colors)
 #' }
-plot3d.neuronlist<-function(x, subset=NULL, col=NULL, colpal=rainbow, skipRedraw=200,
+plot3d.neuronlist<-function(x, subset=NULL, col=NULL, colpal=rainbow, 
+                            skipRedraw=ifelse(interactive(), 200L, TRUE),
                             WithNodes=FALSE, soma=FALSE, ..., SUBSTITUTE=TRUE){
   # Handle Subset
   if(!missing(subset)){

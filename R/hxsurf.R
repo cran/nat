@@ -98,6 +98,10 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="both",
   for(i in 1:nPatches){
     if(Verbose) cat("TriangleDefline =",TriangleDeflines[i],"\n")
     PatchHeader<-remainingLines[PatchStarts[i]:TriangleDeflines[i]]
+    # remove any opening braces - these would cause a problem if on same line
+    PatchHeader=sub("^\\s*\\{\\s*","",PatchHeader)
+    # convert all whitespace to single spaces
+    PatchHeader=gsub("\\s+"," ",PatchHeader)
     if(Verbose) cat("PatchHeader is",length(PatchHeader),"lines long\n")
     # note use of RegionChoice to switch naming between inner and outer
     for(RegChoice in RegionChoice) {
@@ -141,7 +145,7 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="both",
   closeBraces <- grep("}", headerLines)
   for(regionName in d$RegionList) {
     # Find section in headerLines corresponding to this region
-    headerSecStart <- grep(paste0(" ", regionName, " \\{"), headerLines)[1]
+    headerSecStart <- grep(paste0("^\\s*", regionName, "(\\s+ \\{){0,1}"), headerLines)[1]
     headerSecEnd <- closeBraces[closeBraces > headerSecStart][1]
     # Extract colour information
     colorLine <- grep("Color", headerLines[headerSecStart:headerSecEnd], value=T)
@@ -220,8 +224,9 @@ write.hxsurf <- function(surf, filename) {
 #' @family hxsurf
 #' @examples 
 #' plot3d(kcs20)
-#' plot3d(MBL.surf, alpha=0.3)
+#' plot3d(MBL.surf)
 #' 
+#' \donttest{
 #' # plot only vertical lobe
 #' clear3d()
 #' plot3d(MBL.surf, materials="VL", alpha=0.3)
@@ -230,6 +235,7 @@ write.hxsurf <- function(surf, filename) {
 #' clear3d()
 #' plot3d(MBL.surf, alpha=0.3, 
 #'   materials=grep("VL", MBL.surf$RegionList, value = TRUE, invert = TRUE))
+#' }
 plot3d.hxsurf<-function(x, materials=NULL, col=NULL, ...){
   # skip so that the scene is updated only once per hxsurf object
   skip <- par3d(skipRedraw = TRUE)
@@ -300,14 +306,16 @@ as.mesh3d.hxsurf<-function(x, Regions=NULL, material=NULL, drop=TRUE, ...){
 #' @export
 #' @family hxsurf
 #' @examples
-#' plot3d(kcs20)
 #' # plot only vertical lobe
 #' vertical_lobe=subset(MBL.surf, "VL")
+#' \donttest{
 #' plot3d(vertical_lobe, alpha=0.3)
+#' plot3d(kcs20)
 #' 
 #' # there is also a shortcut for this
 #' clear3d()
 #' plot3d(MBL.surf, "VL", alpha=0.3)
+#' }
 subset.hxsurf<-function(x, subset=NULL, drop=TRUE, rval=c("hxsurf","names"), ...){
   rval=match.arg(rval)
   if(!is.null(subset)){
@@ -359,9 +367,14 @@ NULL
 #' Find which points of an object are inside a surface
 #' 
 #' @details Note that \code{hxsurf} surface objects will be converted to 
-#'   \code{mesh3d} before being passed to  \code{Rvcg::vcgClost}, so if you are 
+#'   \code{mesh3d} before being passed to \code{Rvcg::vcgClost}, so if you are 
 #'   testing repeatedly against the same surface, it may make sense to 
 #'   pre-convert.
+#'   
+#'   Note also that if the point is some distance (> 2 twice the diagonal 
+#'   boundingbox of the mesh) then the distance will be returned as NA (or 1e12 
+#'   for older versions of the \code{Rvcg} package). This behaviour is defined
+#'   by the \code{Rvcg::vcgClost} function.
 #' @param x an object with 3D points.
 #' @param surf an \code{hxsurf} or \code{mesh3d} object defining the reference 
 #'   surface.
@@ -383,5 +396,6 @@ pointsinside.default<-function(x, surf, ..., rval=c('logical','distance', 'mesh3
     surf=as.mesh3d(surf, ...)
   }
   rmesh=Rvcg::vcgClost(pts, surf, sign = TRUE)
-  switch(rval, logical=rmesh$quality>0, distance=rmesh$quality, mesh3d=rmesh)
+  switch(rval, logical=is.finite(rmesh$quality) & rmesh$quality>0 & rmesh$quality<1e12, 
+         distance=rmesh$quality, mesh3d=rmesh)
 }

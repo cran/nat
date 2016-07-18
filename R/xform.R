@@ -4,22 +4,31 @@
 #' objects encapsulating neurons. \code{xform} depends on two specialised 
 #' downstream functions \code{\link{xformpoints}} and \code{\link{xformimage}}. 
 #' These are user visible any contain some useful documentation, but should only
-#' be required for expert use; in almost all circumstances, you should use only
+#' be required for expert use; in almost all circumstances, you should use only 
 #' \code{xform}.
 #' 
 #' @section Registrations:
 #'   
 #'   When \code{reg} is a character vector, xform's specialised downstream 
-#'   functions will check to see if it defines a path to one (or more) CMTK 
-#'   registrations, erroring out if this is not the case. If the path does 
-#'   indeed point to a CMTK registration, this method will hand off to 
-#'   \code{xformpoints.cmtkreg} or \code{xformimages.cmtkreg}. A future TODO 
-#'   would be to provide a mechanism for extending this behaviour for other 
-#'   registration formats.
+#'   functions will check to see if it defines a path to one (or more) 
+#'   registrations on disk. These can be of two classes
 #'   
-#'   The character vector may optionally have an attribute, 'swap', a logical 
-#'   vector of the same length indicating whether the transformation direction 
-#'   should be swapped. At the moment only CMTK registration files are supported
+#'   \itemize{
+#'   
+#'   \item CMTK registrations
+#'   
+#'   \item \code{\link{reglist}} objects saved in R's \code{RDS} format (see 
+#'   \code{\link{readRDS}}) which can contain any sequence of registrations 
+#'   supported by nat.
+#'   
+#'   }
+#'   
+#'   If the path does indeed point to a CMTK registration, this method will hand
+#'   off to \code{xformpoints.cmtkreg} or \code{xformimages.cmtkreg}. In this
+#'   case, the character vector may optionally have an attribute, 'swap', a
+#'   logical vector of the same length indicating whether the transformation
+#'   direction should be swapped. At the moment only CMTK registration files are
+#'   supported.
 #'   
 #'   If \code{reg} is a character vector of length >=1 defining a sequence of 
 #'   registration files on disk they should proceed from sample to reference.
@@ -31,13 +40,13 @@
 
 #' @details Methods are provided for some specialised S3 classes. Further 
 #'   methods can of course be constructed for user-defined S3 classes. However 
-#'   this will probalbly not be necessary if the \code{xyzmatrix} and 
+#'   this will probably not be necessary if the \code{xyzmatrix} and 
 #'   \code{`xyzmatrix<-`} generics are suitably overloaded \emph{and} the S3 
 #'   object inherits from \code{list}.
 #'   
 #' @param x an object to transform
 #' @param reg A registration defined by a matrix, a function, a \code{cmtkreg} 
-#'   object, or a character vector specifying a path to one or more CMTK 
+#'   object, or a character vector specifying a path to one or more 
 #'   registrations on disk (see Registrations section).
 #' @param ... additional arguments passed to methods and eventually to 
 #'   \code{\link{xformpoints}}
@@ -99,6 +108,10 @@ xform.list<-function(x, reg, FallBackToAffine=TRUE, na.action='error', ...){
 #' @export
 #' @rdname xform
 xform.shape3d<-xform.list
+
+#' @export
+#' @rdname xform
+xform.neuron<-xform.list
 
 #' @method xform dotprops
 #' @export
@@ -342,14 +355,20 @@ xyzmatrix.mesh3d<-function(x, ...){
 #' @examples
 #' nopen3d()
 #' x=Cell07PNs[[1]]
+#' mx=mirror(x,168)
+#' \donttest{
 #' plot3d(x,col='red')
-#' plot3d(mirror(x,168),col='green')
+#' plot3d(mx,col='green')
+#' }
 #' 
 #' # also works with dotprops objects
 #' clear3d()
 #' y=kcs20[[1]]
+#' my=mirror(y,mirrorAxisSize=564.2532,transform='flip')
+#' \donttest{
 #' plot3d(y, col='red')
-#' plot3d(mirror(y,mirrorAxisSize=564.2532,transform='flip'), col='green')
+#' plot3d(my, col='green')
+#' }
 #' 
 #' \dontrun{
 #' ## Example with an image
@@ -387,9 +406,10 @@ mirror.character<-function(x, output, mirrorAxisSize=NULL, target=x, ...){
 #'   \code{\link{boundingbox}} (see details).
 #' @param mirrorAxis Axis to mirror (default \code{"X"}). Can also be an integer
 #'   in range \code{1:3}.
-#' @param warpfile Path to (optional) CMTK registration that specifies a 
-#'   (usually non-rigid) transformation to be applied \emph{after} the simple 
-#'   mirroring.
+#' @param warpfile Optional registration or \code{\link{reglist}} to be applied
+#'   \emph{after} the simple mirroring.. It is called warpfile for historical
+#'   reasons, since it is normally the path to a CMTK registration that
+#'   specifies a non-rigid transformation to correct asymmetries in an image.
 #' @param transform whether to use warp (default) or affine component of 
 #'   registration, or simply flip about midplane of axis.
 #' @method mirror default
@@ -422,14 +442,7 @@ mirror.default<-function(x, mirrorAxisSize, mirrorAxis=c("X","Y","Z"),
     xform(x, reg=mirrormat, ...)
   } else {
     # Combine registrations: 
-    # 1) to avoid loss of image quality
-    # 2) to apply xform just once since this looks after e.g. recalculating 
-    #    dotprops vectors
-    # FIXME this does assume that warpfile is a CMTK registration.
-    mirror_regfile = as.cmtkreg(tempfile(fileext = ".list"))
-    on.exit(unlink(mirror_regfile, recursive = TRUE))
-    write.cmtkreg(affmat2cmtkparams(mirrormat), mirror_regfile)
-    xform(x, reg=c(mirror_regfile,warpfile), transformtype=transform, ...)
+    xform(x, reg=c(reglist(mirrormat), warpfile), transformtype=transform, ...)
   }
 }
 

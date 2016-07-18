@@ -1,10 +1,10 @@
 context("neuron fileformats")
 
 test_that("we can query fileformats",{
-  expect_equal(fileformats(ext='swc',rval='names'),'swc')
+  expect_equal(fileformats(ext='swc',rval='names'), c('swc','swcng'))
   expect_equal(fileformats(ext='am', class='neuron', rval='names'),
                c('hxlineset','hxskel'))
-  expect_is(fileformats(class='neuron',rval='info'),'matrix')
+  expect_is(fileformats(class='neuron',rval='info'),'data.frame')
   
   expect_is(fw<-getformatwriter(file='test.rds', class='neuron'),'list')
   expect_equal(fw$ext,'.rds')
@@ -102,6 +102,12 @@ test_that("we can read neurons in swc format", {
   expect_equal(n$NeuronName,'EBT7R.CNG')
 })
 
+test_that("we can read swc data into an ngraph object", {
+  swc='testdata/neuron/EBT7R.CNG.swc'
+  expect_is(ng<-read.neuron(swc, class='ngraph'),'ngraph')
+  expect_equal(as.neuron(ng), read.neuron(swc))
+})
+
 test_that("we get an error when trying to read a non-neuron file", {
   nrrd="testdata/nrrd/LHMask.nrrd"
   expect_error(read.neuron(nrrd))
@@ -134,7 +140,7 @@ test_that("we can read in neurons as a neuronlist",{
                info = 'check equality of neuron read by read.neuron & read.neurons')
   
   # check that problem files are named on error/warning
-  expect_message(read.neurons('testdata/neuron/Neurites.am'),
+  expect_message(suppressWarnings(read.neurons('testdata/neuron/Neurites.am')),
                  regexp = 'While reading file.*Neurites\\.am')
 })
 
@@ -814,10 +820,10 @@ test_that("we can update an existing neuronlist",{
   on.exit({setwd(owd); unlink(td,recursive=TRUE)})
   
   write.neurons(Cell07PNs[1:3], dir='.', format = 'swc')
-  expect_is(nl3<-read.neurons(dir(patt='swc$')), 'neuronlist')
+  expect_is(nl3<-read.neurons(dir(pattern='swc$')), 'neuronlist')
   write.neurons(Cell07PNs[4], dir='.', format='swc')
   
-  expect_message(nl4<-read.neurons(rev(dir(patt='swc$')), nl = nl3, 
+  expect_message(nl4<-read.neurons(rev(dir(pattern='swc$')), nl = nl3, 
                                    SortOnUpdate = TRUE), 
                  '0 modified.* 1 new')
   # note that is the order of neurons specified in paths _not_ the order of
@@ -826,7 +832,7 @@ test_that("we can update an existing neuronlist",{
   # overwrite the last file with a different neuron
   write.neurons(Cell07PNs[5], dir='.', format='swc', 
                 files = names(Cell07PNs)[4], Force = T)
-  expect_message(nl4<-read.neurons(dir(patt='swc$'), nl = nl4),
+  expect_message(nl4<-read.neurons(dir(pattern='swc$'), nl = nl4),
                  '1 modified.* 0 new')
 })
 

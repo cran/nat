@@ -1,7 +1,7 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.1
+Version: 1.8.4
 Author: Greg Jefferis and James Manton
 Maintainer: Greg Jefferis <jefferis@gmail.com>
 URL: https://github.com/jefferis/nat http://jefferislab.org
@@ -18,8 +18,8 @@ Description: NeuroAnatomy Toolbox (nat) enables analysis and visualisation of 3D
     neurons including searches and clustering (via the 'nat.nblast' extension
     package).
 Depends: R (>= 2.15.1), rgl
-Imports: nabor, igraph, methods, filehash, digest, nat.utils (>=
-        0.4.2), plyr, yaml
+Imports: nabor, igraph (>= 0.7.1), methods, filehash, digest, nat.utils
+        (>= 0.4.2), plyr, yaml
 Suggests: Rvcg, testthat, httr, XML
 License: GPL-3
 LazyData: yes
@@ -31,10 +31,11 @@ Collate: 'amiralandmarks-io.R' 'amiramesh-io.R' 'cmtk-reformat.R'
         'neuron-io-fiji.R' 'neuron-io-neuroml.R' 'neuron-io.R'
         'neuron-plot.R' 'neuronlist.R' 'neuronlist_interactive_3d.R'
         'neuronlist_sets.R' 'neuronlistfh.R' 'ngraph.R' 'nrrd-io.R'
-        'pop3d.R' 'potential_synapses.R' 'seglist.R' 'summary.R'
-        'vaa3draw-io.R' 'xform.R' 'xformimage.R' 'xformpoints.R'
-        'zzz.R'
+        'pop3d.R' 'potential_synapses.R' 'reglist.R' 'seglist.R'
+        'summary.R' 'vaa3draw-io.R' 'xform.R' 'xformimage.R'
+        'xformpoints.R' 'zzz.R'
+RoxygenNote: 5.0.1
 NeedsCompilation: no
-Packaged: 2015-12-30 17:14:07 UTC; jefferis
+Packaged: 2016-07-17 20:59:35 UTC; jefferis
 Repository: CRAN
-Date/Publication: 2015-12-30 23:24:38
+Date/Publication: 2016-07-18 16:14:55

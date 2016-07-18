@@ -84,7 +84,7 @@ ngraph<-function(el, vertexlabels, xyz=NULL, diam=NULL, directed=TRUE,
     }
     xyzmatrix(g)<-xyz
   }
-  if(!is.null(diam)) V(g)$diam=diam
+  if(!is.null(diam)) igraph::V(g)$diam=diam
   for(n in names(vertex.attributes)){
     g=igraph::set.vertex.attribute(g,name=n,value=vertex.attributes[[n]])
   }
@@ -102,6 +102,9 @@ ngraph<-function(el, vertexlabels, xyz=NULL, diam=NULL, directed=TRUE,
 #' @export
 #' @rdname ngraph
 as.ngraph<-function(x, ...) UseMethod('as.ngraph')
+
+#' @export
+as.ngraph.ngraph<-function(x, ...) x
 
 #' @description \code{as.ngraph.dataframe} construct ngraph from a data.frame 
 #'   containing SWC format data
@@ -181,44 +184,77 @@ as.directed.usingroot<-function(g, root, mode=c('out','in')){
 #'   soma) as the starting point of the returned spine.
 #' @param SpatialWeights logical indicating whether spatial distances (default) 
 #'   should be used to weight segments instead of weighting each edge equally.
-#' @param LengthOnly logical indicating whether only the length of the longest 
-#'   path should be returned (when \code{TRUE}) or whether a neuron pruned down 
-#'   to the the sequence of vertices along the path should be returned 
-#'   (\code{FALSE}, the default).
-#' @return Either a neuron object corresponding to the longest path \emph{or} 
-#'   the length of the longest path when \code{LengthOnly=TRUE}).
+#' @param rval Character vector indicating the return type, one of 
+#'   \code{'neuron'}, \code{'length'} or \code{'ids'}. See \bold{Value} section.
+#' @param invert When \code{invert=TRUE} the spine is pruned away instead of 
+#'   being selected. This is only valid when \code{rval='neuron'} or
+#'   \code{rval='ids'}.
+#' @return Either \itemize{
+#'   
+#'   \item a neuron object corresponding to the longest path \emph{or}
+#'   
+#'   \item the length of the longest path (when \code{rval="length"}) \emph{or}
+#'   
+#'   \item an integer vector of raw point indices (when \code{rval="ids"}).
+#'   
+#'   }
 #' @seealso \code{\link[igraph]{diameter}}, 
 #'   \code{\link[igraph]{shortest.paths}}, \code{\link{prune_strahler}} for 
 #'   removing lower order branches from a neuron, \code{\link{prune}} for 
 #'   removing parts of a neuron by spatial criteria.
 #' @export
 #' @examples
+#' pn.spine=spine(Cell07PNs[[1]])
+#' \donttest{
 #' plot3d(Cell07PNs[[1]])
-#' plot3d(spine(Cell07PNs[[1]]), lwd=4, col='black')
+#' plot3d(pn.spine, lwd=4, col='black')
+#' }
 #' # just extract length
-#' spine(Cell07PNs[[1]], LengthOnly=TRUE)
+#' spine(Cell07PNs[[1]], rval='length')
 #' # same result since StartPoint is included in longest path
-#' spine(Cell07PNs[[1]], LengthOnly=TRUE, UseStartPoint=TRUE)
+#' spine(Cell07PNs[[1]], rval='length', UseStartPoint=TRUE)
+#' 
+#' # extract everything but the spine
+#' antispine=spine(Cell07PNs[[1]], invert=TRUE)
+#' \donttest{
+#' plot3d(Cell07PNs[[1]])
+#' plot3d(antispine, lwd=4, col='red')
+#' }
+#' 
 #' @importFrom igraph shortest.paths get.shortest.paths diameter get.diameter 
 #'   delete.vertices
-spine <- function(n, UseStartPoint=FALSE, SpatialWeights=TRUE, LengthOnly=FALSE) {
+#' @family neuron
+spine <- function(n, UseStartPoint=FALSE, SpatialWeights=TRUE, invert=FALSE,
+                  rval=c("neuron", "length", "ids")) {
   ng <- as.ngraph(n, weights=SpatialWeights)
+  rval=match.arg(rval)
+  if(invert && rval=="length") 
+    stop("invert=TRUE is not implemented for rval='length'")
   if(UseStartPoint) {
     # Find longest shortest path from given start point to all end points
     lps=shortest.paths(graph = ng, n$StartPoint, to = n$EndPoints, 
                        mode = 'all')
-    if(LengthOnly) return(max(lps))
+    if(rval=='length') return(max(lps))
     to=n$EndPoints[which.max(lps)]
     longestpath=get.shortest.paths(ng, from = n$StartPoint, to = to, mode = 'all')$vpath[[1]]
   } else {
-    if(LengthOnly) {
+    if(rval=='length') {
       return(diameter(ng, directed=FALSE))
     } else {
       longestpath=get.diameter(ng, directed=FALSE)
     }
   }
-  spineGraph <- delete.vertices(ng, setdiff(V(ng), longestpath))
-  as.neuron(as.ngraph(spineGraph), vertexData=n$d[match(V(spineGraph)$label,n$d$PointNo), ])
+  if(rval=='ids') {
+    if(invert) {
+      # find complement of the spine path
+      ie=setdiff(igraph::E(ng), igraph::E(ng, path=longestpath))
+      # find edge matrix of that path
+      edgemat=igraph::get.edges(ng, ie)
+      # nb transpose and then vectorise to interleave row-wise
+      return(unique(as.integer(t(edgemat))))
+    } else return(as.integer(longestpath))
+  }
+  prune_edges(ng, edges = longestpath, invert = !invert)
 }
 
 #' Return a simplified segment graph for a neuron
@@ -315,7 +351,7 @@ segmentgraph<-function(x, weights=TRUE, segids=FALSE, exclude.isolated=FALSE,
 #' @seealso \code{\link{prune_strahler}}, a \code{\link{segmentgraph}} (a form
 #'   of \code{\link{ngraph}}) representation is used to calculate the Strahler 
 #'   order.
-#' @importFrom igraph bfs neighborhood V
+#' @importFrom igraph graph.bfs neighborhood V
 #' @return A list containing \itemize{
 #'   
 #'   \item points Vector of integer Strahler orders for each point in the neuron
@@ -329,7 +365,7 @@ strahler_order<-function(x){
   if(length(roots)>1)
     stop("strahler_order not yet defined for multiple subtrees")
   
-  b=bfs(s, root=roots, neimode = 'out', unreachable=F, father=T)
+  b=graph.bfs(s, root=roots, neimode = 'out', unreachable=F, father=T)
   
   # find neighbours for each node
   n=neighborhood(s, 1, mode='out')
@@ -412,27 +448,93 @@ prune_strahler<-function(x, orderstoprune=1:2, ...) {
     )
 }
 
-#' Prune selected vertices from a neuron
+#' Prune selected vertices or edges from a neuron
 #' 
-#' @details uses the \code{ngraph} representation of the neuron to remove 
-#'   points. It is relatively low-level function and you will probably want to 
-#'   use \code{\link{subset.neuron}} or \code{\link{prune.neuron}} and friends
-#'   in most cases.
-#' @param x A neuron to prune
+#' @description \code{prune_vertices} removes vertices from a neuron
+#' 
+#' @details These are relatively low-level functions and you will probably want 
+#'   to use \code{\link{subset.neuron}} or \code{\link{prune.neuron}} and 
+#'   friends in many cases.
+#'   
+#'   Note that \code{prune_vertices} and \code{prune_edges} both use \bold{raw} 
+#'   vertex ids to specify the vertices/edges to be removed. If you want to use
+#'   the id in the PointNo field, then you must translate yourself (see
+#'   examples).
+#'   
+#'   \code{prune_vertices} first converts its input to the \code{\link{ngraph}} 
+#'   representation of the neuron to remove points. The input \code{x} can 
+#'   therefore be in any form compatible with \code{\link{as.ngraph}}. There is 
+#'   an additional requirement that the input must be compatible with 
+#'   \code{\link{xyzmatrix}} if \code{invert=TRUE}.
+#'   
+#' @param x A \code{\link{neuron}} to prune. This can be any object that can be 
+#'   converted by \code{\link{as.ngraph}} --- see details.
 #' @param verticestoprune An integer vector describing which vertices to remove.
-#'   The special signalling value of \code{NA} drops all vertices with invalid X
-#'   locations.
+#' @param invert Whether to keep vertices rather than dropping them (default 
+#'   FALSE).
 #' @param ... Additional arguments passed to \code{\link{as.neuron.ngraph}}
+#' @return A pruned \code{neuron}
 #' @export
-#' @seealso \code{\link{as.neuron.ngraph}}, \code{\link{subset.neuron}},
+#' @seealso \code{\link{as.neuron.ngraph}}, \code{\link{subset.neuron}}, 
 #'   \code{\link{prune.neuron}}
-prune_vertices<-function(x, verticestoprune, ...) {
+#' @examples 
+#' n=prune_vertices(Cell07PNs[[1]], 1:25)
+#' # original neuron
+#' plot(Cell07PNs[[1]])
+#' # with pruned neuron superimposed
+#' plot(n, col='green', lwd=3, add=TRUE)
+#' 
+#' # use the PointNo field (= the original id from an SWC file)
+#' n2=prune_vertices(n, match(26:30, n$d$PointNo))
+prune_vertices<-function(x, verticestoprune, invert=FALSE, ...) {
   g=as.ngraph(x)
-  if(length(verticestoprune)==1 && is.na(verticestoprune)) {
-    verticestoprune=which(!is.finite(x$d$X))
+  
+  # because igraph.vs sequences are atttached to a specific graph
+  if(inherits(verticestoprune, "igraph.vs")) 
+    verticestoprune=as.integer(verticestoprune)
+  if(invert) {
+    nvertices=nrow(xyzmatrix(x))
+    verticestoprune=setdiff(seq_len(nvertices), verticestoprune)
   }
   dg=igraph::delete.vertices(g, verticestoprune)
   # delete.vertices will return an igraph
+  as.neuron(as.ngraph(dg), ...)
+}
+
+#' @description \code{prune_edges} removes edges (and any unreferenced vertices)
+#' @param edges The edges to remove. Either an Nx2 matrix, each row specifying a
+#'   single edge defined by its \bold{raw} edge id, an integer vector defining a
+#'   \emph{path} of raw vertex ids or an \code{igraph.es} edge sequence --- see
+#'   the \code{P} and \code{path} arguments of \code{igraph::\link[igraph]{E}}
+#'   for details.
+#' @export
+#' @rdname prune_vertices
+#' @examples 
+#' y=prune_edges(Cell07PNs[[1]], edges=1:25)
+#' 
+#' # remove the spine of a neuron
+#' spine_ids=spine(Cell07PNs[[1]], rval='ids')
+#' pruned=prune_edges(Cell07PNs[[1]], spine_ids)
+#' 
+#' # NB this is subtly different from this, which removes vertices along the
+#' # spine *even* if they are part of an edge that is outside the spine.
+#' pruned2=prune_vertices(Cell07PNs[[1]], spine_ids)
+prune_edges<-function(x, edges, invert=FALSE, ...) {
+  g=as.ngraph(x)
+  if(!inherits(edges, "igraph.es")){
+    if(is.matrix(edges)){
+      edges=igraph::E(g, P = as.vector(t(edges)))
+    } else if(is.numeric(edges)) {
+      edges=igraph::E(g, path = as.vector(t(edges)))
+    } else stop("I can't understand the edges you have given me!")
+  }
+  
+  if(invert) edges=setdiff(igraph::E(g), edges)
+  
+  dg=igraph::delete.edges(g, edges = edges)
+  
+  # remove unreferenced vertices
+  dg=igraph::delete.vertices(dg, which(igraph::degree(dg, mode='all')==0))
   as.neuron(as.ngraph(dg), ...)
 }
 

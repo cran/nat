@@ -35,9 +35,34 @@
 #'   (\code{NULL}) sets NeuronName to the file name without the file extension.
 #' @param MD5 Logical indicating whether to calculate MD5 hash of input
 #' @importFrom tools md5sum
+#' @examples 
+#' ## See help for functions listed in See Also for more detailed examples
+#' ## Basic properties
+#' # a sample neuron 
+#' n = Cell07PNs[[1]]
+#' # inspect its internal structure
+#' str(n)
+#' # summary of 3D points
+#' summary(xyzmatrix(n))
+#' # identify 3d location of endpoints
+#' xyzmatrix(n)[endpoints(n),]
+#' 
+#' ## Neurons as graphs
+#' # convert to graph and find longest paths by number of nodes
+#' ng=as.ngraph(n)
+#' hist(igraph::distances(ng))
+#' # ... or in distances  microns
+#' ngw=as.ngraph(n, weights=TRUE)
+#' hist(igraph::distances(ngw))
+#' 
+#' ## Other methods
+#' # plot
+#' plot(n)
+#' # all methods for neuron objects
+#' methods(class = 'neuron')
 neuron<-function(d, NumPoints=nrow(d), StartPoint, BranchPoints=integer(), EndPoints,
                  SegList, SubTrees=NULL, InputFileName=NULL, NeuronName=NULL, ...,
-                 MD5=TRUE){
+                 MD5=TRUE){get
   
   coreFieldOrder=c("NumPoints", "StartPoint", "BranchPoints", 
                "EndPoints", "nTrees", "NumSegs", "SegList", "SubTrees","d" )
@@ -471,6 +496,7 @@ resample<-function(x, ...) UseMethod("resample")
 #' @export
 #' @rdname resample
 #' @seealso \code{\link{approx}}, \code{\link{seglengths}}
+#' @family neuron
 resample.neuron<-function(x, stepsize, ...) {
   # extract original vertex array before resampling
   cols=c("X","Y","Z")
@@ -558,24 +584,27 @@ resample_segment<-function(d, stepsize, ...) {
 #'   one of \itemize{
 #'   
 #'   \item logical or numeric indices, in which case these are simply used to 
-#'   index the vertices in the order of the
+#'   index the vertices in the order of the data.frame \code{x$d}. Note that any
+#'   NA values are ignored.
 #'   
 #'   \item a function (which is called with the 3D points array and returns T/F 
 #'   vector)
 #'   
 #'   \item an expression evaluated in the context of the \code{x$d} data.frame 
 #'   containing the SWC specification of the points and connectivity of the 
-#'   neuron. This can therefore refer e.g. to the x,y,z location of vertices in 
+#'   neuron. This can therefore refer e.g. to the X,Y,Z location of vertices in 
 #'   the neuron.
 #'   
 #'   }
 #' @param x A neuron object
 #' @param subset A subset of points defined by indices, an expression, or a 
 #'   function (see Details)
+#' @param invert Whether to invert the subset criteria - a convenience when 
+#'   selecting by function or indices.
 #' @param ... Additional parameters (passsed on to \code{\link{prune_vertices}})
 #' @return subsetted neuron
 #' @export
-#' @seealso \code{\link{prune.neuron}}, \code{\link{prune_vertices}},
+#' @seealso \code{\link{prune.neuron}}, \code{\link{prune_vertices}}, 
 #'   \code{\link{subset.dotprops}}
 #' @examples
 #' n=Cell07PNs[[1]]
@@ -584,7 +613,9 @@ resample_segment<-function(d, stepsize, ...) {
 #' # diameter of neurite >1 
 #' n2=subset(n, W>1)
 #' # first 50 nodes
-#' n3=subset(n,1:50)
+#' n3=subset(n, 1:50)
+#' # everything but first 50 nodes
+#' n4=subset(n, 1:50, invert=TRUE)
 #' 
 #' ## subset neuron by graph structure
 #' # first plot neuron and show the point that we will use to divide the neuron
@@ -597,7 +628,7 @@ resample_segment<-function(d, stepsize, ...) {
 #' # now find the points downstream (distal) of that with respect to the root
 #' ng=as.ngraph(n)
 #' # use a depth first search 
-#' distal_points=igraph::dfs(ng, root=n$AxonLHEP, unreachable=FALSE, 
+#' distal_points=igraph::graph.dfs(ng, root=n$AxonLHEP, unreachable=FALSE, 
 #'   neimode='out')$order
 #' distal_tree=subset(n, distal_points)
 #' plot(distal_tree, add=TRUE, col='red', lwd=2)
@@ -628,8 +659,21 @@ resample_segment<-function(d, stepsize, ...) {
 #' plot3d(n10, lwd=0.5, col='grey')
 #' n10.crop = nlapply(n10, subset, X>250)
 #' plot3d(n10.crop, col='red')
+#' 
+#' ## subset a neuron using a surface
+#' library(nat.flybrains)
+#' # extract left lateral horn surface and convert to mesh3d 
+#' lh=as.mesh3d(subset(IS2NP.surf, "LH_L"))
+#' # subset neuron with this surface
+#' x=subset(Cell07PNs[[1]], function(x) pointsinside(x, lh))
+#' shade3d(lh, alpha=0.3)
+#' plot3d(x, lwd=3, col='blue')
+#' # Now find the parts of the neuron outside the surface
+#' y=subset(Cell07PNs[[1]], function(x) Negate(pointsinside)(x, lh))
+#' plot3d(y, col='red', lwd=2)
 #' }
-subset.neuron<-function(x, subset, ...){
+#' @family neuron
+subset.neuron<-function(x, subset, invert=FALSE, ...){
   e <- substitute(subset)
   r <- eval(e, x$d, parent.frame())
   if (!is.logical(r) && !is.numeric(r)) {
@@ -640,8 +684,9 @@ subset.neuron<-function(x, subset, ...){
   if(is.logical(r)) {
     r <- r & !is.na(r)
     r <- which(r)
-  } else if(!is.numeric(r)) 
-    stop("Subset must evaluate to a logical or numeric index")
-  indstodrop=setdiff(seq(nrow(x$d)), r)
-  prune_vertices(x, indstodrop, ...)
+  } else if(is.numeric(r)) {
+    r=r[!is.na(r)]
+  } else stop("Subset must evaluate to a logical or numeric index")
+  # nb !invert since prune_vertices drops vertices whereas subset.neuron keeps vertices
+  prune_vertices(x, r, invert=!invert, ...)
 }
