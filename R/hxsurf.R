@@ -68,8 +68,7 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="both",
   dataStart=grep("^\\s*Vertices\\s*",t)[1]
   if(Verbose) cat("Data start line =",dataStart,"\n")
   headerLines=t[seq(dataStart-1)]
-  trim=function(x) sub('^\\s+', '', sub('\\s+$', '', x, perl = TRUE), perl = TRUE)
-  getfield=function(fName,textLines=headerLines,pos=2) unlist(strsplit(trim(textLines[grep(fName,textLines)]),"\\s+",perl=TRUE))[pos]
+  getfield=function(fName,textLines=headerLines,pos=2) unlist(strsplit(trimws(textLines[grep(fName,textLines)]),"\\s+",perl=TRUE))[pos]
   nVertices=as.numeric(getfield("Vertices",t[dataStart],2))
   if(Verbose) cat("nVertices =",nVertices,"\n")
   
@@ -151,6 +150,8 @@ read.hxsurf<-function(filename,RegionNames=NULL,RegionChoice="both",
     colorLine <- grep("Color", headerLines[headerSecStart:headerSecEnd], value=T)
     if(length(colorLine) > 0) {
       rgbValues <- strsplit(regmatches(colorLine, gregexpr("[0-9]$|[0-9][^\\.]|[0-9]\\.[0-9]+", colorLine, perl=T))[[1]], " ")
+      # clean up any trailing commas
+      rgbValues <- gsub("[,}]","", rgbValues)
       color <- rgb(rgbValues[[1]], rgbValues[[2]], rgbValues[[3]])
     } else {
       color <- FallbackRegionCol
@@ -211,7 +212,7 @@ write.hxsurf <- function(surf, filename) {
 #' Plot amira surface objects in 3D using rgl
 #' 
 #' @param x An hxsurf surface object
-#' @param materials Character vector or \code{\link{regex}} naming materials to
+#' @param materials Character vector or \code{\link[base]{regex}} naming materials to
 #'   plot (defaults to all materials in x). See \code{\link{subset.hxsurf}}.
 #' @param col Character vector specifying colors for the materials, or a 
 #'   function that will be called with the number of materials to plot. When 
@@ -295,7 +296,7 @@ as.mesh3d.hxsurf<-function(x, Regions=NULL, material=NULL, drop=TRUE, ...){
 #' 
 #' @param x A dotprops object
 #' @param subset Character vector specifying regions to keep. Interpreted as 
-#'   \code{\link{regex}} if of length 1 and no fixed match.
+#'   \code{\link[base]{regex}} if of length 1 and no fixed match.
 #' @param drop Whether to drop unused vertices after subsetting (default:
 #'   \code{TRUE})
 #' @param rval Whether to return a new \code{hxsurf} object or just the names of

@@ -1,3 +1,33 @@
+nat 1.8.7
+=========
+This release includes some bug fixes and significantly improved online package
+documentation visible at http://jefferis.github.io/nat/ including two vignettes.
+
+* Teach xform and friends to transform soma positions (#206)
+* Copy attributes (including templatebrains) of neuronlists when subsetting (#310)
+* Fix error in read.amiramesh for RLE encoded files. (#317)
+  (reported by K. Hornik)
+* replace nat::trim with base::trimws (#313)
+
+nat 1.8.6
+=========
+* Add xform.data.frame method (#309)
+* Add invert_reglist function (#308)
+* Fix bug in imslice storing position of new singleton dim (#306)
+* Fix namespace issues for smooth_neuron
+
+nat 1.8.5
+=========
+The main feature of this release is improved support for nat+CMTK on Windows.
+
+* teach voxdims.character to get voxel dimensions straight from image file on 
+  disk enhancement (#303)
+* teach coord2ind to accept nat.templatebrains objects for imdims (#302)
+* add simple smooth_neuron function (#300)
+* fix bug reading amira surfaces when Color precedes Id (#305)
+* cmtk.reformatx needs to use system2 (#301)
+* Don't use shell features on Windows (#295)
+
 nat 1.8.4
 =========
 * fix  build failures with testthat >=0.12 (#293)

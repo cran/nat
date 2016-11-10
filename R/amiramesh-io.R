@@ -186,7 +186,7 @@ read.amiramesh.header<-function(file, Parse=TRUE, Verbose=FALSE){
 
   nHeaderLines=length(headerLines)
   # trim comments and blanks & convert all white space to single spaces
-  headerLines=trim(sub("(.*)#.*","\\1",headerLines,perl=TRUE))
+  headerLines=trimws(sub("(.*)#.*","\\1",headerLines,perl=TRUE))
   headerLines=headerLines[headerLines!=""]
   headerLines=gsub("[[:space:]]+"," ",headerLines,perl=TRUE)
   
@@ -309,7 +309,7 @@ read.amiramesh.header<-function(file, Parse=TRUE, Verbose=FALSE){
     if(length(thisLine)==0) break
     
     # trim and split it up by white space
-    thisLine=trim(thisLine)
+    thisLine=trimws(thisLine)
     
     # skip if this is a blank line
     if(nchar(thisLine)==0) next
@@ -404,7 +404,7 @@ decode.rle<-function(d,uncompressedLength){
   while(bytesRead<uncompressedLength){
     x=d[filepos]
     filepos=filepos+1
-    if(x==0)
+    if(x==0L)
       stop(paste("byte at offset ",filepos," is 0!"))
     if(x>0x7f) {
       # cat("x=",x,"\n")
@@ -415,7 +415,7 @@ decode.rle<-function(d,uncompressedLength){
       # that's the x that we've read
     } else {
       # x>0
-      mybytes=rep.int(d[filepos],x)
+      mybytes=rep.int(d[filepos], as.integer(x))
       filepos=filepos+1
     }
     rval[(bytesRead+1):(bytesRead+length(mybytes))]=mybytes
