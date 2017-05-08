@@ -16,7 +16,7 @@ smooth_segment_gauss(xyz, sigma, ...)
 
 \item{...}{Additional parameters passed to segment smoothing functions}
 
-\item{xyz}{A block of 3D coordindates defining an unbranched segment}
+\item{xyz}{A block of 3D coordinates defining an unbranched segment}
 
 \item{sigma}{The standard deviation of the Gaussian smoothing kernel (which
 has the same spatial units as the object being smoothed)}
@@ -29,9 +29,12 @@ A new neuron with smoothed 3d coordinates
 }
 \examples{
 ns=smooth_neuron(Cell07PNs[[1]], sigma=2)
+# plot in 2D zooming in on axon terminals 
+plot(Cell07PNs[[1]], col='grey', xlim=c(260,290), ylim=c(115,90))
+plot(ns, col='red', add=TRUE)
 \donttest{
+# 3D plot
 plot3d(Cell07PNs[[1]], col='grey')
 plot3d(ns, col='red')
 }
 }
-

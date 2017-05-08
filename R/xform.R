@@ -174,8 +174,10 @@ xform.dotprops<-function(x, reg, FallBackToAffine=TRUE, ...){
 #'   When \code{x}'s attached data.frame contains columns called x,y,z or X,Y,Z 
 #'   then these are assumed to be coordinates and also transformed when 
 #'   \code{TransformDFCoords=TRUE} (the default). This provides a mechanism for 
-#'   transforming the soma positions of \code{neuronlist} objects containing
-#'   \code{dotprops} objects.
+#'   transforming the soma positions of \code{neuronlist} objects containing 
+#'   \code{dotprops} objects (which do not otherwise store the soma position).
+#'   Note that if transformation fails, a warning will be issued and the points
+#'   will be replaced with \code{NA} values.
 #' @param subset For \code{xform.neuronlist} indices (character/logical/integer)
 #'   that specify a subset of the members of \code{x} to be transformed.
 #' @param VectoriseRegistrations When \code{FALSE}, the default, each element of
@@ -212,15 +214,15 @@ xform.neuronlist<-function(x, reg, subset=NULL, ..., OmitFailures=NA,
         stop("Not yet implemented")
       } else {
         # let's assume that if we were able to transform the neuron, then we
-        # insist on being able to transform the soma
-        # but we just keep rows for neurons in our result neuronlist
+        # want to be able to transform the soma (but will warn on failure)
+        # However we just keep rows for neurons in our result neuronlist
         # given that choice we need to convert our subset expression into rownames
         # because numeric indices will get out of register
         if(!is.null(subset) && !is.character(subset))
           subset=rownames(df)[subset]
         df=df[names(tx),,drop=FALSE]
         
-        data.frame(tx) <- xform(df, reg, na.action = 'error', subset = subset)
+        data.frame(tx) <- xform(df, reg, na.action = 'warn', subset = subset)
       }
     }
   }
@@ -372,6 +374,53 @@ xyzmatrix.mesh3d<-function(x, ...){
 `xyzmatrix<-.shape3d`<-function(x, value){
   x$vb=t(cbind(value, 1))
   x
+}
+
+#' @export
+#' @rdname xyzmatrix
+`xyzmatrix<-.neuronlist`<-function(x, value){
+  # find number of vertices for each neuron
+  nv=nvertices(x)
+  if (sum(nv) != nrow(value))
+    stop("Mismatch between original and replacement number of vertices!")
+  idxs=rep(seq_along(x), nv)
+  b=by(value, INDICES = idxs, FUN = data.matrix)
+  for(i in seq_along(x)) {
+    xyzmatrix(x[[i]]) <- b[[i]]
+  }
+  x
+}
+
+#' Find the number of vertices in an object (or each element of a neuronlist)
+#' 
+#' @param x An object with 3d vertices (e.g. neuron, surface etc)
+#' @param ... Additional arguments passed to methods (currently ignored)
+#'   
+#' @return an integer number of vertices (or a vector of length equal to a
+#'   neuronlist)
+#' @export
+#' 
+#' @examples
+#' nvertices(Cell07PNs[[1]])
+#' nvertices(kcs20)
+nvertices <- function(x, ...) UseMethod('nvertices')
+
+#' @rdname nvertices
+#' @export
+nvertices.default <- function(x, ...) {
+  nrow(xyzmatrix(x))
+}
+
+#' @export
+nvertices.neuron <- function(x, ...) nrow(x$d)
+
+#' @export
+nvertices.dotprops <- function(x, ...) nrow(x$points)
+
+#' @rdname nvertices
+#' @export
+nvertices.neuronlist <- function(x, ...) {
+  sapply(x, nvertices)
 }
 
 #' Mirror 3D object about a given axis, optionally using a warping registration

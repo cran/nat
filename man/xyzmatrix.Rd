@@ -3,18 +3,19 @@
 \name{xyzmatrix}
 \alias{xyzmatrix}
 \alias{xyzmatrix.default}
+\alias{xyzmatrix.neuron}
+\alias{xyzmatrix.neuronlist}
 \alias{xyzmatrix.dotprops}
 \alias{xyzmatrix.hxsurf}
 \alias{xyzmatrix.igraph}
 \alias{xyzmatrix.mesh3d}
-\alias{xyzmatrix.neuron}
-\alias{xyzmatrix.neuronlist}
 \alias{xyzmatrix<-}
+\alias{xyzmatrix<-.neuron}
 \alias{xyzmatrix<-.dotprops}
 \alias{xyzmatrix<-.hxsurf}
 \alias{xyzmatrix<-.igraph}
-\alias{xyzmatrix<-.neuron}
 \alias{xyzmatrix<-.shape3d}
+\alias{xyzmatrix<-.neuronlist}
 \title{Get and assign coordinates for classes containing 3D vertex data}
 \usage{
 xyzmatrix(x, ...)
@@ -44,6 +45,8 @@ xyzmatrix(x) <- value
 \method{xyzmatrix}{igraph}(x) <- value
 
 \method{xyzmatrix}{shape3d}(x) <- value
+
+\method{xyzmatrix}{neuronlist}(x) <- value
 }
 \arguments{
 \item{x}{object containing 3D coordinates}
@@ -85,4 +88,3 @@ stopifnot(isTRUE(
 \seealso{
 \code{\link{xyzmatrix}}
 }
-

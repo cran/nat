@@ -100,13 +100,22 @@ test_that("we can convert hxsurf to rgl::mesh3d",{
   expect_is(tet.mesh3d<-as.mesh3d(tet.hxsurf), 'mesh3d')
   expect_equal(tet.mesh3d, tetrahedron3d(color='#FF0000'))
   
+  # round trip test
+  expect_equal(as.hxsurf(tet.mesh3d, region = 'Inside'), tet.hxsurf)
+  
   expect_equal(as.mesh3d(surf, Regions=c("LH_L","LH_R")),
                as.mesh3d(subset(surf, c("LH_L","LH_R"), drop=TRUE)))  
 })
 
+test_that("we can convert ashape3d to rgl::mesh3d",{
+  skip_if_not_installed('alphashape3d')
+  kcs20.a=alphashape3d::ashape3d(xyzmatrix(kcs20), alpha = 10)
+  expect_is(as.mesh3d(kcs20.a), 'mesh3d')
+})
+
 test_that("we can save and re-read hxsurf object", {
-  on.exit(unlink(surffile))
   surffile <- tempfile()
+  on.exit(unlink(surffile))
   write.hxsurf(surf, surffile)
   newsurf <- read.hxsurf(surffile)
   expect_equal(newsurf, surf)

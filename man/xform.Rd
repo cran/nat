@@ -2,14 +2,14 @@
 % Please edit documentation in R/xform.R
 \name{xform}
 \alias{xform}
-\alias{xform.character}
-\alias{xform.data.frame}
 \alias{xform.default}
-\alias{xform.dotprops}
+\alias{xform.character}
 \alias{xform.list}
-\alias{xform.neuron}
-\alias{xform.neuronlist}
 \alias{xform.shape3d}
+\alias{xform.neuron}
+\alias{xform.data.frame}
+\alias{xform.dotprops}
+\alias{xform.neuronlist}
 \title{Transform the 3D location of objects such as neurons}
 \usage{
 xform(x, reg, ...)
@@ -107,8 +107,10 @@ With \code{xform.neuronlist}, if you want to apply a different
   When \code{x}'s attached data.frame contains columns called x,y,z or X,Y,Z 
   then these are assumed to be coordinates and also transformed when 
   \code{TransformDFCoords=TRUE} (the default). This provides a mechanism for 
-  transforming the soma positions of \code{neuronlist} objects containing
-  \code{dotprops} objects.
+  transforming the soma positions of \code{neuronlist} objects containing 
+  \code{dotprops} objects (which do not otherwise store the soma position).
+  Note that if transformation fails, a warning will be issued and the points
+  will be replaced with \code{NA} values.
 }
 \section{Registrations}{
 
@@ -142,6 +144,7 @@ With \code{xform.neuronlist}, if you want to apply a different
   order to swallow any arguments passed from higher level functions that are 
   not relevant to this particular transformation function.
 }
+
 \examples{
 \dontrun{
 kc1=kcs20[[1]]
@@ -169,4 +172,3 @@ nx=xform(Cell07PNs[1:3], reg=regs, VectoriseRegistrations=TRUE)
 \seealso{
 \code{\link{xformpoints}}
 }
-

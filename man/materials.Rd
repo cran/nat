@@ -2,8 +2,8 @@
 % Please edit documentation in R/im3d.R
 \name{materials}
 \alias{materials}
-\alias{materials.character}
 \alias{materials.default}
+\alias{materials.character}
 \alias{materials.hxsurf}
 \title{Extract or set the materials for an object}
 \usage{
@@ -43,8 +43,8 @@ Presently only amiramesh images are supported since they have a
   key-value pairs according to some ad hoc convention.
 }
 \seealso{
-Other hxsurf: \code{\link{as.mesh3d}},
+Other hxsurf: \code{\link{as.hxsurf}},
+  \code{\link{as.mesh3d.ashape3d}},
   \code{\link{plot3d.hxsurf}}, \code{\link{read.hxsurf}},
   \code{\link{subset.hxsurf}}, \code{\link{write.hxsurf}}
 }
-

@@ -2,8 +2,8 @@
 % Please edit documentation in R/nat-package.R
 \docType{package}
 \name{nat-package}
-\alias{nat}
 \alias{nat-package}
+\alias{nat}
 \title{Analyse 3D biological image data especially neurons}
 \description{
 \bold{nat} provides tools to read, analyse, plot, transform and convert 
@@ -154,6 +154,11 @@ neuroanatomical data, especially representations of neurons.
   \item{\code{nat.default.neuronlist}}{ A neuronlist to use with the 
   \code{\link{plot3d.character}} method}
   
+  \item{\code{nat.progress}}{ The default progress reporter to use with 
+  \code{\link{nlapply}}. See \code{\link[plyr]{create_progress_bar}} for 
+  possible values. When unset is equivalent to special value \code{'auto'}. 
+  To suppress altogether, use \code{nat.progress="none"}.}
+  
   }
   
   In addition there is one read-only option: \itemize{
@@ -163,6 +168,7 @@ neuroanatomical data, especially representations of neurons.
   
   }
 }
+
 \seealso{
 \code{\link{neuron}}, \code{\link{dotprops}}, 
   \code{\link{neuronlist}}, \code{\link{nlapply}}, \code{\link[nat]{plot3d}},
@@ -171,4 +177,3 @@ neuroanatomical data, especially representations of neurons.
   \code{\link{fileformats}}, \code{\link{read.neurons}}, \code{\link{cmtk}}.
 }
 \keyword{package}
-
