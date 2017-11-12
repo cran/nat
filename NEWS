@@ -1,3 +1,28 @@
+nat 1.8.11
+==========
+Fixes
+* pointsinside fails for points >1e5 from mesh (#354)
+* as.neuron should work for an igraph made from an ngraph (#356)
+  this is helpful if you e.g. delete nodes/edges from an ngraph object
+* breaking change with testthat v2 #355
+
+nat 1.8.10
+==========
+* pointsinside now works with alpha shape (ashape3d) objects directly (#350)
+* On windows add cygwin binary directory to path if not present 
+  (fixes errors with missing cygwin DLLs)
+* workaround for some functions (eg those using CMTK registration folders) that
+  were affected by file.exists("/some/real/registration.list/") returning FALSE
+  on Windows
+* Fix cmtk.reformatx under Cygwin - output NRRD file path (but not other paths)
+  must be munged for reformatx - not sure why this isn't handled internally.
+* Fix as.mesh3d.ashape3d messing up the order of triangle vertices 
+  which was giving problems with pointsinside (#349)
+* Fix pointsinside to return TRUE for vertices defining mesh (with distance=0)
+  (#348)
+* Switch pointsinside to use Rvcg::vcgClostKD, thereby fixing some cases
+  where points were incorrectly reported to be inside a surface. (#352)
+
 nat 1.8.9
 =========
 * fix reading of neurons when origin is not an endpoint (#342)

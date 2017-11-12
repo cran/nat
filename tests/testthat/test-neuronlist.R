@@ -22,8 +22,7 @@ test_that("c.neuronlist behaves", {
   attr(c610.nodf,'df')=NULL
   expect_equivalent(c(Cell07PNs[1:5], c610.nodf), Cell07PNs[1:10])
   
-  expect_equivalent(kcs20[1:6], c(kcs20[1:2], kcs20[3:4], kcs20[5:6]), 
-                    "combine more than 2 neuronlists")
+  expect_equivalent(kcs20[1:6], c(kcs20[1:2], kcs20[3:4], kcs20[5:6]))
   expect_error(c(Cell07PNs[1:5], NULL))
   expect_error(c(Cell07PNs[1:5], Cell07PNs[1:5]), "neurons with the same name")
 })
@@ -247,7 +246,10 @@ test_that("as.data.frame.neuronlist behaves", {
   data.frame(kcs20nodf)<-df[rev(1:nrow(df)), ]
   expect_equal(as.data.frame(kcs20nodf), as.data.frame(kcs20))
   rownames(df)=letters[1:nrow(df)]
-  expect_error(data.frame(kcs20nodf)<-df, 'rownames do not match')
+  expect_warning(data.frame(kcs20nodf)<-df, 'rownames mismatch')
+  rownames(df)=NULL
+  data.frame(kcs20nodf)<-df
+  expect_equal(kcs20nodf[,], kcs20[,])
 })
 
 context("neuronlist: [")

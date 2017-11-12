@@ -140,20 +140,21 @@ dotprops.neuron<-function(x, Labels=NULL, resample=NA, ...) {
 #' @method dotprops default
 #' @export
 #' @rdname dotprops
-#' @param k Number of nearest neighbours to use for tangent vector calculation
+#' @param k Number of nearest neighbours to use for tangent vector calculation 
 #'   (set to k=20 when passed NULL)
-#' @param Labels Vector of labels for each point or \code{NULL} to accept 
-#'   class-specific default behaviour for different S3 classes, \code{TRUE} 
-#'   always to use labels when incoming object has them and \code{FALSE} never 
-#'   to use labels.
+#' @param Labels Vector of labels for each point e.g. identifying axon vs 
+#'   dendrite. The default value \code{NULL} will produce class-specific default
+#'   behaviour for different classes of input object, \code{TRUE} always uses 
+#'   labels when an incoming object has them and \code{FALSE} never uses labels.
 #' @param na.rm Whether to remove \code{NA} points (default FALSE)
 #' @importFrom nabor knn
-#' @references The dotprops format is essentially identical to that developed in:
-#' 
-#' Masse N.Y., Cachero S., Ostrovsky A., and Jefferis G.S.X.E. (2012). 
-#' A mutual information approach to automate identification of neuronal clusters 
-#' in \emph{Drosophila} brain images. Frontiers in Neuroinformatics 6 (00021).
-#' \href{http://dx.doi.org/10.3389/fninf.2012.00021}{doi: 10.3389/fninf.2012.00021}
+#' @references The dotprops format is essentially identical to that developed 
+#'   in:
+#'   
+#'   Masse N.Y., Cachero S., Ostrovsky A., and Jefferis G.S.X.E. (2012). A 
+#'   mutual information approach to automate identification of neuronal clusters
+#'   in \emph{Drosophila} brain images. Frontiers in Neuroinformatics 6 (00021).
+#'   \href{http://dx.doi.org/10.3389/fninf.2012.00021}{doi: 10.3389/fninf.2012.00021}
 dotprops.default<-function(x, k=NULL, Labels=NULL, na.rm=FALSE, ...){
   # store labels from SWC format data if this is a neuron
   x=xyzmatrix(x)
@@ -322,6 +323,7 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black',
 #' @param x A dotprops object
 #' @param subset A subset of points defined by indices, an expression or a function (see Details)
 #' @param ... Additional parameters (currently ignored)
+#' @inheritParams subset.neuron
 #' @return subsetted dotprops object
 #' @method subset dotprops
 #' @export
@@ -349,14 +351,16 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black',
 #' 
 #' ## subset using an selection function
 #' s3d=select3d()
-#' dp1=subset(dp,s3d(points))
+#' dp1=subset(dp, s3d(points))
 #' # special case of previous version
-#' dp2=subset(dp,s3d)
+#' dp2=subset(dp, s3d)
 #' # keep the points that were removed from dp2
-#' dp2.not=subset(dp,Negate(s3d))
-#' stopifnot(all.equal(dp1,dp2))
-#' dp2=subset(dp,alpha>0.5 & s3d(pointd))
-#' dp3=subset(dp,1:10)
+#' dp2.not=subset(dp, s3d, invert=TRUE)
+#' # (another way of doing the same thing)
+#' dp2.not=subset(dp, Negate(s3d))
+#' stopifnot(all.equal(dp1, dp2))
+#' dp2=subset(dp, alpha>0.5 & s3d(pointd))
+#' dp3=subset(dp, 1:10)
 #' 
 #' ## subset each dotprops object in a whole neuronlist
 #' plot3d(kcs20)
@@ -366,16 +370,22 @@ plot3d.dotprops<-function(x, scalevecs=1.0, alpharange=NULL, color='black',
 #' plot3d(kcs20.partial, col='red')
 #' plot3d(kcs20, col='grey')
 #' }
-subset.dotprops<-function(x, subset, ...){
+subset.dotprops<-function(x, subset, invert=FALSE, ...){
   e <- substitute(subset)
   r <- eval(e, x, parent.frame())
   if (!is.logical(r) && !is.numeric(r)) {
     # a function that tells us whether a point is in or out
-    if(is.function(r)) r=subset(x$points)
+    if(is.function(r)) r=r(x$points)
     else stop("Cannot evaluate subset")
   }
-  if(is.logical(r)) r <- r & !is.na(r)
-  else if(!is.numeric(r)) stop("Subset must evaluate to a logical or numeric index")
+  if(is.logical(r)) {
+    r <- r & !is.na(r)
+    if(invert) r <- !r
+  } else if(is.numeric(r)) {
+    if(invert) r <- setdiff(seq_len(nvertices(x)), r)
+  } else {
+    stop("Subset must evaluate to a logical or numeric index")
+  }
   
   x$points=x$points[r,,drop=F]
   x$alpha=x$alpha[r]

@@ -413,35 +413,88 @@ NULL
 #' Find which points of an object are inside a surface
 #' 
 #' @details Note that \code{hxsurf} surface objects will be converted to 
-#'   \code{mesh3d} before being passed to \code{Rvcg::vcgClost}, so if you are 
+#'   \code{mesh3d} before being passed to \code{Rvcg::vcgClostKD}, so if you are 
 #'   testing repeatedly against the same surface, it may make sense to 
 #'   pre-convert.
 #'   
-#'   Note also that if the point is some distance (> 2 twice the diagonal 
-#'   boundingbox of the mesh) then the distance will be returned as NA (or 1e12 
-#'   for older versions of the \code{Rvcg} package). This behaviour is defined
-#'   by the \code{Rvcg::vcgClost} function.
+#'   \code{pointsinside} depends on the face normals for each face pointing out 
+#'   of the object (see example). The face normals are defined by the order of 
+#'   the three vertices making up a triangular face. You can flip the face 
+#'   normal for a face by permuting the vertices (i.e. 1,2,3 -> 1,3,2). If you 
+#'   find for a given surface that points are outside when you expect them to be
+#'   inside then the face normals are probably all the wrong way round. You can 
+#'   invert them yourself or use the \code{Morpho::invertFaces} function to fix 
+#'   this.
+#'   
+#'   If you find that some points but not all points are not behaving as you 
+#'   would expect, then it may be that some faces are not coherently oriented. 
+#'   The \code{Rvcg::\link[Rvcg]{vcgClean}} function can sometimes be used to 
+#'   correct the orientation of the faces. Fixing more problematic cases may be 
+#'   possible by generating a new surface using 
+#'   \code{alphashape3d::\link[alphashape3d]{ashape3d}} (see examples).
+#'   
 #' @param x an object with 3D points.
-#' @param surf an \code{hxsurf} or \code{mesh3d} object defining the reference 
-#'   surface.
+#' @param surf The reference surface - either a \code{mesh3d} object or any 
+#'   object that can be converted using \code{as.mesh3d} including \code{hxsurf}
+#'   and \code{ashape3d} objects.
 #' @param ... additional arguments for methods, eventually passed to as.mesh3d.
 #' @export
+#' @examples
+#' # check if the vertices in these neurons are inside the mushroom body calyx
+#' # surface object
+#' inout=pointsinside(kcs20, surf=subset(MBL.surf, "MB_CA_L"))
+#' table(inout)
+#' 
+#' # be a bit more lenient and include points less than 5 microns from surface
+#' MBCAL=subset(MBL.surf, "MB_CA_L")
+#' inout5=pointsinside(kcs20, surf=MBCAL, rval='distance') > -5
+#' table(inout5)
+#' \donttest{
+#' # show which points are in or out
+#' # Hmm seems like there are a few red points in the vertical lobe
+#' # that are well outside the calyx
+#' points3d(xyzmatrix(kcs20), col=ifelse(inout5, 'red', 'black'))
+#' plot3d(MBL.surf, alpha=.3)
+#' 
+#' # Let's try to make an alphashape for the mesh to clean it up
+#' library(alphashape3d)
+#' MBCAL.as=ashape3d(xyzmatrix(MBCAL), alpha = 10)
+#' # Plotting the points, we can see that is much better behaved
+#' points3d(xyzmatrix(kcs20), 
+#'   col=ifelse(pointsinside(kcs20, MBCAL.as), 'red', 'black'))
+#' }
+#' 
+#' \dontrun{
+#' # Show the face normals for a surface
+#' if(require('Morpho')) {
+#'   # convert to a mesh3d object used by rgl and Morpho packge
+#'   MBCAL.mesh=as.mesh3d(subset(MBL.surf, "MB_CA_L"))
+#'   fn=facenormals(MBCAL.mesh)
+#'   wire3d(MBCAL.mesh)
+#'   # show that the normals point out of the object
+#'   plotNormals(fn, long=5, col='red')
+#'   
+#'   # invert the faces of the mesh and show that normals point in
+#'   MBCAL.inv=invertFaces(MBCAL.mesh)
+#'   plotNormals(facenormals(MBCAL.inv), long=5, col='cyan')
+#' }
+#' }
 pointsinside<-function(x, surf, ...) UseMethod('pointsinside')
 
 #' @export
 #' @param rval what to return.
-#' @return A vector of logical values or distances equal to the number of points
-#'   in x or the \code{mesh3d} object returned by \code{Rvcg::vcgClost}.
+#' @return A vector of logical values or distances (positive inside, negative
+#'   outside) equal to the number of points in x or the \code{mesh3d} object
+#'   returned by \code{Rvcg::vcgClostKD}.
 #' @rdname pointsinside
 pointsinside.default<-function(x, surf, ..., rval=c('logical','distance', 'mesh3d')) {
   if(!requireNamespace('Rvcg', quietly = TRUE))
     stop("Please install suggested library Rvcg to use pointsinside")
   rval=match.arg(rval)
   pts=xyzmatrix(x)
-  if(inherits(surf,'hxsurf')) {
+  if(!inherits(surf,'mesh3d')) {
     surf=as.mesh3d(surf, ...)
   }
-  rmesh=Rvcg::vcgClost(pts, surf, sign = TRUE)
-  switch(rval, logical=is.finite(rmesh$quality) & rmesh$quality>0 & rmesh$quality<1e12, 
-         distance=rmesh$quality, mesh3d=rmesh)
+  rmesh=Rvcg::vcgClostKD(pts, surf, sign = TRUE)
+  switch(rval, logical=rmesh$quality>=0, distance=rmesh$quality, mesh3d=rmesh)
 }

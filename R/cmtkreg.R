@@ -110,22 +110,25 @@ is.cmtkreg<-function(x, filecheck=c('none','exists','magic')) {
 #' @seealso \code{\link{cmtkreg}}, \code{\link{read.cmtkreg}},
 #'   \code{\link[rgl]{plot3d}}
 #' @examples 
-#' \donttest{
-#' plot3d(cmtkreg('testdata/cmtk/FCWB_JFRC2_01_warp_level-01.list/'))
+#' \dontrun{
+#' testdatadir=system.file("tests/testthat/testdata/cmtk", package="nat")
+#' regpath=file.path(testdatadir,'FCWB_JFRC2_01_warp_level-01.list/')
+#' plot3d(cmtkreg(regpath))
 #' 
 #' # or read registration into memory if you want to work with it
-#' reg=read.cmtkreg('testdata/cmtk/FCWB_JFRC2_01_warp_level-01.list/')
+#' reg=read.cmtkreg(regpath)
 #' # nb calling plot3d.cmtkreg directly (rather than using the generic plot3d) 
 #' # is considered bad style but read.cmtkreg returns a plain list 
 #' # so method dispatch will fail
-#' plot3d.cmtkreg(reg)
+#' nat:::plot3d.cmtkreg(reg)
 #' }
 #' @importFrom rgl plot3d
+#' @export
 plot3d.cmtkreg <- function(x, ...) {
   reg=NULL
   if(is.list(x)) {
-    if(!is.null(x$registration)) reg=x$registration
-    if(is.null(x$spline_warp))
+    if(!is.null(x$registration)) reg=x$registration else reg=x
+    if(is.null(reg$spline_warp))
        stop("This looks like an in memory CMTK registration but I can't find the spline_warp field")
   } else if(is.character(x)) {
     reg <- read.cmtkreg(x, ReturnRegistrationOnly = TRUE)

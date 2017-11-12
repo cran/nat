@@ -1,7 +1,7 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.9
+Version: 1.8.11
 Authors@R: c(
     person("Gregory", "Jefferis", , "jefferis@gmail.com", role = c("aut", "cre")),
     person("James", "Manton", role = c("aut"))
@@ -22,7 +22,7 @@ Description: NeuroAnatomy Toolbox (nat) enables analysis and visualisation of 3D
 Depends: R (>= 2.15.1), rgl (>= 0.98.1)
 Imports: nabor, igraph (>= 0.7.1), methods, filehash, digest, nat.utils
         (>= 0.4.2), plyr, yaml
-Suggests: Rvcg, testthat, httr, XML, knitr, rmarkdown, MASS,
+Suggests: Rvcg (>= 0.17), testthat, httr, XML, knitr, rmarkdown, MASS,
         alphashape3d
 License: GPL-3
 LazyData: yes
@@ -35,14 +35,14 @@ Collate: 'alphashape3d.R' 'amiralandmarks-io.R' 'amiramesh-io.R'
         'neuron-plot.R' 'neuronlist.R' 'neuronlist_interactive_3d.R'
         'neuronlist_sets.R' 'neuronlistfh.R' 'ngraph.R' 'nrrd-io.R'
         'pop3d.R' 'potential_synapses.R' 'reglist.R' 'seglist.R'
-        'summary.R' 'vaa3draw-io.R' 'vtk-io.R' 'xform.R' 'xformimage.R'
-        'xformpoints.R' 'zzz.R'
+        'summary.R' 'utils.R' 'vaa3draw-io.R' 'vtk-io.R' 'xform.R'
+        'xformimage.R' 'xformpoints.R' 'zzz.R'
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2017-05-08 10:20:06 UTC; superFlyGuy
+Packaged: 2017-11-10 22:47:36 UTC; jefferis
 Author: Gregory Jefferis [aut, cre],
   James Manton [aut]
 Maintainer: Gregory Jefferis <jefferis@gmail.com>
 Repository: CRAN
-Date/Publication: 2017-05-08 13:59:52 UTC
+Date/Publication: 2017-11-12 17:09:05 UTC
