@@ -1,3 +1,23 @@
+nat 1.8.13
+==========
+
+This release backports a few urgent fixes to the 1.8 branch
+
+* Fix very slow loading of neurons in `neuronlistfh()` objects. 
+  Apparently due to a change in behaviour in R 3.6.0 (#402).
+  Thanks to Shanice Bailey and Lisa Marin for the bug report.
+* Fix ndigest check error on CRAN (#411)
+
+It also updates URLs to point to nat's new home organisation on GitHub 
+(https://github.com/natverse/).
+nat 1.8.12
+==========
+* Speed up (2-3x) summary.neuron(list) by faster calculation of total cable
+  length. Note that this may cause some changes in the reported cable length
+  because all cable is now included (as it should always have been). (#361)
+* fix bug: dotprops do not get resampled labels bug (#360)
+* Add nview3d function to set anatomical viewpoints (#359)
+
 nat 1.8.11
 ==========
 Fixes
@@ -54,7 +74,7 @@ nat 1.8.8
 nat 1.8.7
 =========
 This release includes some bug fixes and significantly improved online package
-documentation visible at http://jefferis.github.io/nat/ including two vignettes.
+documentation visible at http://natverse.github.io/nat/ including two vignettes.
 
 * Teach xform and friends to transform soma positions (#206)
 * Copy attributes (including templatebrains) of neuronlists when subsetting (#310)
