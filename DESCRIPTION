@@ -1,7 +1,7 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.13
+Version: 1.8.14
 Authors@R: c(
     person("Gregory","Jefferis", email="jefferis@gmail.com", 
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0587-9355")),
@@ -38,13 +38,13 @@ Collate: 'alphashape3d.R' 'amiralandmarks-io.R' 'amiramesh-io.R'
         'pop3d.R' 'potential_synapses.R' 'reglist.R' 'seglist.R'
         'summary.R' 'utils.R' 'vaa3draw-io.R' 'vtk-io.R' 'xform.R'
         'xformimage.R' 'xformpoints.R' 'zzz.R'
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.2
 Encoding: UTF-8
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2019-08-22 12:08:18 UTC; jefferis
+Packaged: 2020-02-07 01:05:34 UTC; jefferis
 Author: Gregory Jefferis [aut, cre] (<https://orcid.org/0000-0002-0587-9355>),
   James Manton [aut] (<https://orcid.org/0000-0001-9260-3156>)
 Maintainer: Gregory Jefferis <jefferis@gmail.com>
 Repository: CRAN
-Date/Publication: 2019-08-22 15:30:02 UTC
+Date/Publication: 2020-02-07 06:30:25 UTC
