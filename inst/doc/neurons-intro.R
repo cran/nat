@@ -9,6 +9,9 @@ library(nat)
 rgl::setupKnitr()
 library(knitr)
 opts_chunk$set(fig.width=5)
+# to avoid issues on CRAN when webshot2/rmarkdown unavailable
+use_rgl=requireNamespace('webshot2', quietly=TRUE) && requireNamespace('rmarkdown', quietly=TRUE) &&
+  rmarkdown::pandoc_available()
 
 ## -----------------------------------------------------------------------------
 data("Cell07PNs")
@@ -134,13 +137,13 @@ plot(Cell07PNs[1:3])
 plot(Cell07PNs, subset=Glomerulus!="DA1", col='grey', WithNodes=F, main="DA1 neurons")
 plot(Cell07PNs, subset=Glomerulus=="DA1", add=TRUE)
 
-## ---- webgl=TRUE--------------------------------------------------------------
+## ---- webgl=use_rgl-----------------------------------------------------------
 clear3d()
 plot3d(Cell07PNs[[1]], col='red')
 # set a grey background so it's easier to see extent of the webgl canvas
 bg3d(col='lightgrey')
 
-## ---- rgl=TRUE, fig.width=6---------------------------------------------------
+## ---- rgl=use_rgl, fig.width=6------------------------------------------------
 # 3d plot of neurons from olfactory glomeruli beginning with a D
 # coloured by glomerulus
 rval=plot3d(Cell07PNs, subset=grepl("^D", Glomerulus), col=Glomerulus,

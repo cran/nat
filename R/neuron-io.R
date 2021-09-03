@@ -15,7 +15,7 @@
 #'   \item \bold{neuroml} See \code{\link{read.neuron.neuroml}}
 #'
 #'   \item \bold{fijitraces} See \code{\link{read.neuron.fiji}}. The file format
-#'   used by the \href{https://imagej.net/Simple_Neurite_Tracer}{Simple Neurite
+#'   used by the \href{https://imagej.net/plugins/simple-neurite-tracer/}{Simple Neurite
 #'   Tracer} plugin of Fiji/ImageJ.
 #'
 #'   \item \bold{hxlineset,hxskel} Two distinct fileformats used by Amira.
@@ -42,7 +42,7 @@
 #'   Obermayer, K. (2004). New methods for the computer-assisted 3-D
 #'   reconstruction of neurons from confocal image stacks. Neuroimage 4,
 #'   1283--98.
-#'   \href{http://dx.doi.org/10.1016/j.neuroimage.2004.06.047}{doi:10.1016/j.neuroimage.2004.06.047}
+#'   \doi{10.1016/j.neuroimage.2004.06.047}
 #'
 #' @examples
 #' \dontrun{
@@ -277,9 +277,8 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
 #'   list or a table of information about the formats that match the given 
 #'   filter conditions.
 #' @details if a \code{format} argument is passed to \code{fileformats} it will
-#'   be matched wigth partial string matching and iif a unique match exists that
+#'   be matched with partial string matching and if a unique match exists that
 #'   will be returned.
-#' @inheritParams registerformat
 #' @param rval Character vector choosing what kind of return value 
 #'   \code{fileformats} will give.
 #' @return \itemize{
@@ -288,7 +287,7 @@ read.neurons<-function(paths, pattern=NULL, neuronnames=basename, format=NULL,
 #'   according to the value of rval.
 #'   
 #'   \item \code{getformatreader} returns a list. The reader can be accessed 
-#'   with \code{$read} and the format can be acessed by \code{$format}.
+#'   with \code{$read} and the format can be accessed by \code{$format}.
 #'   
 #'   \item \code{getformatwriter} returns a list. The writer can be accessed 
 #'   with \code{$write}.}
