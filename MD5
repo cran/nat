@@ -1,6 +1,6 @@
-8568cb6613e725466e2513aef2cdc08c *DESCRIPTION
+2401b2eb6125c5a38b93b4ef8075a8cc *DESCRIPTION
 c8318c12fd63ffeac2f6703b63f999f0 *NAMESPACE
-a24d5ccd6b42815a5398a8aad26362da *NEWS
+d2a95f8bda9cbed1702f22517bec6233 *NEWS
 f936fee59e03c1cf67737fea93f4e085 *R/alphashape3d.R
 c31cec90075b06091ef398db083fa4b0 *R/amiralandmarks-io.R
 b98a4089112234db16f461474055dab0 *R/amiramesh-io.R
@@ -43,17 +43,17 @@ ddb1984e8332a60e779a33ff423ce6ac *R/xform.R
 0b66cb3ec0016f30b277289f1b63f8f8 *R/xformpoints.R
 7bf86bffa8cd34a97f4977b3bd25cfd7 *R/zzz.R
 558d35805d318cb5c039f2ac0cfe0bbc *README.md
-7be6b3f7ecb8473e0787cb3d0b3d1a53 *build/partial.rdb
+f17a3e671cb76de9cfdec7feba8d2add *build/partial.rdb
 51e4aee4f7432db3322236c8cd12e2a1 *build/vignette.rds
 4e8d8716e25c9ebfb97aa11277a4a1fb *data/Cell07PNs.rda
 1ca461e9abab6be5c86e7ffcf895d311 *data/MBL.surf.rda
 1747293d409200cf3b1a2298be01d3e4 *data/kcs20.rda
 82892a4e9001d77f5f2525eec382abb7 *inst/CITATION
 bb15ab10cc24f2c5e92e9bff8da90ace *inst/doc/Installation.Rmd
-b78b6f22c94a6f4e699dd840155d0c66 *inst/doc/Installation.html
-3432f4e78cdf6ae7cd705a8f1e827551 *inst/doc/neurons-intro.R
-dac945022d186dc48e098a4ae8f2671d *inst/doc/neurons-intro.Rmd
-db6594ee34efd1993e04c6ba68663af5 *inst/doc/neurons-intro.html
+43bc1afd9596d01338ecd791baf0b247 *inst/doc/Installation.html
+bf53272ffc52e3beae8d02e32b5a4ca7 *inst/doc/neurons-intro.R
+f031393414743ad21ce1d7a71ff3efc4 *inst/doc/neurons-intro.Rmd
+dd39528b7c758be8ced8e2a3835420f7 *inst/doc/neurons-intro.html
 7057f51f792ecf774fa9d7e92083c513 *man/Cell07PNs.Rd
 8dad39e667f3e232d391c849eb30bc40 *man/MBL.surf.Rd
 213120d8a60851cbbcddbb756742a372 *man/affmat2cmtkparams.Rd
@@ -305,4 +305,4 @@ a39d3ae9e578be5f3861373efae0b1e5 *tests/testthat/testdata/selfun_cell07.rds
 bb15ab10cc24f2c5e92e9bff8da90ace *vignettes/Installation.Rmd
 6994bfa7b83f256618973ba7cbc84b77 *vignettes/fig/neuronlist-01.png
 d6799359ac863ce22955188b2e975242 *vignettes/fig/neuronlist-subsets-01.png
-dac945022d186dc48e098a4ae8f2671d *vignettes/neurons-intro.Rmd
+f031393414743ad21ce1d7a71ff3efc4 *vignettes/neurons-intro.Rmd

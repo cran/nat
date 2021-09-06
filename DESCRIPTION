@@ -1,7 +1,7 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.17
+Version: 1.8.18
 Authors@R: c(
     person("Gregory","Jefferis", email="jefferis@gmail.com", 
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0587-9355")),
@@ -43,9 +43,9 @@ RoxygenNote: 7.1.1
 Encoding: UTF-8
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2021-09-03 15:13:31 UTC; jefferis
+Packaged: 2021-09-06 09:51:22 UTC; jefferis
 Author: Gregory Jefferis [aut, cre] (<https://orcid.org/0000-0002-0587-9355>),
   James Manton [aut] (<https://orcid.org/0000-0001-9260-3156>)
 Maintainer: Gregory Jefferis <jefferis@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-09-03 16:00:05 UTC
+Date/Publication: 2021-09-06 13:40:02 UTC
