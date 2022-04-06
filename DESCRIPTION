@@ -1,11 +1,12 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.18
+Version: 1.8.19
 Authors@R: c(
     person("Gregory","Jefferis", email="jefferis@gmail.com", 
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0587-9355")),
-    person("James", "Manton", role = c("aut"), comment = c(ORCID = "0000-0001-9260-3156"))
+    person("James", "Manton", role = c("aut"), comment = c(ORCID = "0000-0001-9260-3156")),
+    person("Dominik", "Krzeminski", role = c("ctb"), comment = c(ORCID = "0000-0003-4568-0583"))
     )
 URL: https://github.com/natverse/nat, https://natverse.org/
 BugReports: https://github.com/natverse/nat/issues
@@ -43,9 +44,10 @@ RoxygenNote: 7.1.1
 Encoding: UTF-8
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2021-09-06 09:51:22 UTC; jefferis
+Packaged: 2022-04-05 12:51:57 UTC; dominik
 Author: Gregory Jefferis [aut, cre] (<https://orcid.org/0000-0002-0587-9355>),
-  James Manton [aut] (<https://orcid.org/0000-0001-9260-3156>)
+  James Manton [aut] (<https://orcid.org/0000-0001-9260-3156>),
+  Dominik Krzeminski [ctb] (<https://orcid.org/0000-0003-4568-0583>)
 Maintainer: Gregory Jefferis <jefferis@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-09-06 13:40:02 UTC
+Date/Publication: 2022-04-06 11:50:02 UTC
