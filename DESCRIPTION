@@ -1,7 +1,7 @@
 Package: nat
 Type: Package
 Title: NeuroAnatomy Toolbox for Analysis of 3D Image Data
-Version: 1.8.19
+Version: 1.8.21
 Authors@R: c(
     person("Gregory","Jefferis", email="jefferis@gmail.com", 
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0587-9355")),
@@ -22,11 +22,10 @@ Description: NeuroAnatomy Toolbox (nat) enables analysis and visualisation of 3D
     neurons including searches and clustering (via the 'nat.nblast' extension
     package).
 Depends: R (>= 2.15.1), rgl (>= 0.98.1)
-Imports: nabor, igraph (>= 0.7.1), methods, filehash (>= 2.3), digest,
+Imports: nabor, igraph (>= 1.3.0), methods, filehash (>= 2.3), digest,
         nat.utils (>= 0.4.2), plyr, yaml
 Suggests: Rvcg (>= 0.17), testthat, httr, XML, knitr, rmarkdown,
         markdown, MASS, alphashape3d, webshot2
-Additional_repositories: https://dmurdoch.github.io/drat
 License: GPL-3
 LazyData: yes
 Collate: 'alphashape3d.R' 'amiralandmarks-io.R' 'amiramesh-io.R'
@@ -40,14 +39,14 @@ Collate: 'alphashape3d.R' 'amiralandmarks-io.R' 'amiramesh-io.R'
         'pop3d.R' 'potential_synapses.R' 'reglist.R' 'seglist.R'
         'summary.R' 'utils.R' 'vaa3draw-io.R' 'vtk-io.R' 'xform.R'
         'xformimage.R' 'xformpoints.R' 'zzz.R'
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.3
 Encoding: UTF-8
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2022-04-05 12:51:57 UTC; dominik
+Packaged: 2023-01-28 23:11:58 UTC; jefferis
 Author: Gregory Jefferis [aut, cre] (<https://orcid.org/0000-0002-0587-9355>),
   James Manton [aut] (<https://orcid.org/0000-0001-9260-3156>),
   Dominik Krzeminski [ctb] (<https://orcid.org/0000-0003-4568-0583>)
 Maintainer: Gregory Jefferis <jefferis@gmail.com>
 Repository: CRAN
-Date/Publication: 2022-04-06 11:50:02 UTC
+Date/Publication: 2023-01-28 23:50:02 UTC
