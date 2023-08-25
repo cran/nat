@@ -12,7 +12,7 @@
 
 <meta name="author" content="Gregory Jefferis" />
 
-<meta name="date" content="2023-06-07" />
+<meta name="date" content="2023-08-25" />
 
 <title>Installation Details</title>
 
@@ -340,7 +340,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Installation Details</h1>
 <h4 class="author">Gregory Jefferis</h4>
-<h4 class="date">2023-06-07</h4>
+<h4 class="date">2023-08-25</h4>
 
 
 
@@ -381,10 +381,10 @@ separately – see section <em>External Dependencies</em> below.</p>
 <h1>Basic Installation</h1>
 <p>As of v1.0 there is a released version on CRAN. This is normally
 updated only every few months.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nat&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nat&quot;</span>)</span></code></pre></div>
 <p>If you wish to run the package tests, it is necessary to install with
 all dependencies:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nat&quot;</span>, <span class="at">dependencies=</span><span class="cn">TRUE</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nat&quot;</span>, <span class="at">dependencies=</span><span class="cn">TRUE</span>)</span></code></pre></div>
 </div>
 <div id="development-version" class="section level1">
 <h1>Development version</h1>
@@ -394,10 +394,10 @@ The recommended way to do this is to install Hadley Wickham’s invaluable
 <a href="https://CRAN.R-project.org/package=devtools">devtools</a>
 package (if you have not already done so) and then use that to install
 nat.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># install devtools if required</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(<span class="st">&quot;devtools&quot;</span>)) <span class="fu">install.packages</span>(<span class="st">&quot;devtools&quot;</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># then install nat</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;natverse/nat&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># install devtools if required</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(<span class="st">&quot;devtools&quot;</span>)) <span class="fu">install.packages</span>(<span class="st">&quot;devtools&quot;</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># then install nat</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;natverse/nat&quot;</span>)</span></code></pre></div>
 <p>The <strong>nat</strong> package includes extensive unit tests which
 are run along with R’s (extremely fastidious) package check routines by
 the [GitHub Actions(<a href="https://github.com/natverse/nat/actions" class="uri">https://github.com/natverse/nat/actions</a>) continuous
@@ -406,7 +406,7 @@ stable and may well contain fixes or enhancements over released
 versions. However, you can install any <a href="https://github.com/natverse/nat/tags">release version</a>
 including the <a href="https://github.com/natverse/nat/releases/latest">latest
 release</a> as follows:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;natverse/nat@v1.8.6&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;natverse/nat@v1.8.6&quot;</span>)</span></code></pre></div>
 <p>The same syntax can be used to install any arbitrary version that you
 want from github. See <code>?install_github</code> for details.</p>
 <p>Note: Windows users need <a href="https://cran.r-project.org/bin/windows/Rtools/">Rtools</a> to
