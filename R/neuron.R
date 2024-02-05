@@ -63,7 +63,7 @@
 #' 
 #' # converting back and forth between neurons and graphs
 #' g=as.ngraph(Cell07PNs[[1]])
-#' gstem=igraph::induced.subgraph(g, 1:10)
+#' gstem=igraph::induced_subgraph(g, 1:10)
 #' # this is fine
 #' plot(gstem)
 #' plot(as.neuron(gstem))
@@ -143,11 +143,11 @@ as.neuron.data.frame<-function(x, ...) {
 #' @param x A data.frame containing neuron morphology data
 #' @param requiredColumns Character vector naming columns we should have
 #' @param ifMissing What to do if \code{x} is missing a required column
-#' @param includeExtraCols Whether to include any extra columns include in 
-#'   code{x}
-#' @param defaultValue A list containing default values to use for any missing 
+#' @param includeExtraCols Whether to include any extra columns included in
+#'   \code{x}
+#' @param defaultValue A list containing default values to use for any missing
 #'   columns
-#' @return A data.frame containing the normalised block of SWC data with 
+#' @return A data.frame containing the normalised block of SWC data with
 #'   standard columns in standard order.
 #' @seealso \code{\link{as.neuron.data.frame}}, \code{\link{seglist2swc}}
 #' @details Note that row.names of the resultant data.frame will be set to NULL
@@ -203,9 +203,9 @@ normalise_swc<-function(x, requiredColumns=c('PointNo','Label','X','Y','Z','W','
 #'   [SubTrees]) NB SubTrees will only be present when nTrees>1.
 #' @export
 #' @method as.neuron ngraph
-#' @importFrom igraph V V<- vcount decompose.graph
+#' @importFrom igraph V V<- vcount decompose
 #' @rdname neuron
-#' @seealso \code{\link{graph.dfs}, \link{as.seglist}}
+#' @seealso \code{\link{dfs}, \link{as.seglist}}
 as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
   # translate origin into raw vertex id if necessary 
   if(length(origin)){
@@ -218,11 +218,11 @@ as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
   # save original vertex ids
   igraph::V(x)$vid=seq.int(igraph::vcount(x))
   # check if we have multiple subgraphs
-  if(igraph::no.clusters(x)>1){
+  if(igraph::count_components(x)>1){
     if(!length(origin)){
       # no origin specified, will pick the biggest subtree
       # decompose into list of subgraphs
-      gg=igraph::decompose.graph(x)
+      gg=igraph::decompose(x)
       # reorder by descending number of vertices
       gg=gg[order(sapply(gg,igraph::vcount), decreasing=TRUE)]
       subtrees=lapply(gg, as.seglist, Verbose=Verbose)
@@ -230,15 +230,15 @@ as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
       masterg=gg[[1]]
     } else {
       # origin specified, subtree containing origin will be the master
-      cg=igraph::clusters(x)
+      cg=igraph::components(x)
       master_tree_num=cg$membership[origin]
       # make a master graph with the vertices from subgraph including origin
-      masterg=igraph::induced.subgraph(x, which(cg$membership==master_tree_num))
+      masterg=igraph::induced_subgraph(x, which(cg$membership==master_tree_num))
       # ... and then corresponding seglist
       sl=as.seglist(masterg, origin=origin)
       # now deal with remaining vertices
-      remainderg=igraph::induced.subgraph(x, which(cg$membership!=master_tree_num))
-      gg=igraph::decompose.graph(remainderg)
+      remainderg=igraph::induced_subgraph(x, which(cg$membership!=master_tree_num))
+      gg=igraph::decompose(remainderg)
       # reorder by descending number of vertices
       gg=gg[order(sapply(gg,igraph::vcount), decreasing=TRUE)]
       subtrees=c(list(sl),lapply(gg, as.seglist, Verbose=Verbose))
@@ -259,7 +259,7 @@ as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
   # sort out the vertex information
   # TODO refactor this into a separate function e.g. normalise.swc since
   # we need to do something similar in as.neuron.dataframe and seglist2swc etc
-  d=data.frame(PointNo=get.vertex.attribute(x,'label'))
+  d=data.frame(PointNo=vertex_attr(x,'label'))
   if(is.null(vertexData)){
     # get vertex information from graph object
     xyz=xyzmatrix(x)
@@ -287,7 +287,7 @@ as.neuron.ngraph<-function(x, vertexData=NULL, origin=NULL, Verbose=FALSE, ...){
   
   d=seglist2swc(x=subtrees,d=d)
   d=normalise_swc(d)
-  n=list(d=d,NumPoints=igraph::vcount(masterg),
+  n=list(d=d,NumPoints=nvertices(masterg),
          StartPoint=StartPoint,
          BranchPoints=branchpoints(masterg, original.ids='vid'),
          EndPoints=endpoints(masterg, original.ids='vid'),
@@ -469,7 +469,7 @@ all.equal.neuron<-function(target,current,tolerance=1e-6,check.attributes=FALSE,
 #' @param flatten Whether to flatten the lists of lists into a single list when 
 #'   \code{all=TRUE}
 #' @param sumsegment Whether to return the length of each segment (when 
-#'   {sumsegment=TRUE}, the default) or a list of vectors of lengths of each
+#'   \code{sumsegment=TRUE}, the default) or a list of vectors of lengths of each
 #'   individual edge in the segment.
 #' @details A segment is an ubranched portion of neurite consisting of at least 
 #'   one vertex joined by edges.Only segments in x$SegList will be calculated 
@@ -754,8 +754,8 @@ smooth_segment_spline <- function(xyz, ...) {
 #' 
 #' # now find the points downstream (distal) of that with respect to the root
 #' ng=as.ngraph(n)
-#' # use a depth first search 
-#' distal_points=igraph::graph.dfs(ng, root=n$AxonLHEP, unreachable=FALSE, 
+#' # use a depth first search
+#' distal_points=igraph::dfs(ng, root=n$AxonLHEP, unreachable=FALSE,
 #'   mode='out')$order
 #' distal_tree=subset(n, distal_points)
 #' plot(distal_tree, add=TRUE, col='red', lwd=2)
